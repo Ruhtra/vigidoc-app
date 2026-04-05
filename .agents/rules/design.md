@@ -2,112 +2,80 @@
 trigger: always_on
 ---
 
-# Design Rules
+# Design Rules (VigiDoc DNA)
 
-> Diretrizes estritas de UX/UI para aplicativos de alto nível (Foco em clareza, beleza nativa e legibilidade).
-
----
-
-## Princípio Central
-
-Beleza na maioria dos apps móveis é alcançada com claridade, tipografia consistente, contraste correto de ícones e hierarquia limpa, que transmita confiança. É essencial focar no **padrão de interface nativa confortável** de ler e lidar. 
-**Interfaces devem sentir-se acolhedoras e vivas**. Use animações delicadas e feedbacks construtivos!
+> Diretrizes estritas de UX/UI para o ecossistema VigiDoc. Foco em estética **Dark Space**, elementos **Futuristas** e interfaces **Vivas**.
 
 ---
 
-## Cores Semânticas
+## 🚀 Princípio Central: VigiDoc DNA
 
-Nunca declare valores hexadecimais em styles. Extraia-os para seu token system em `constants/colors.ts`:
+O VigiDoc não é apenas um app médico, é uma ferramenta de alta tecnologia. A interface deve parecer um **painel de controle avançado (HUD)**, transmitindo precisão, inovação e confiança.
+**Regra de Ouro**: Se a tela parecer um app comum de sistema, ela falhou. Use brilhos, gradientes sutis e animações que deem vida aos dados.
+
+---
+
+## 🌌 Estética Dark Space & Cores
+
+Nunca use cinza puro. Use tons de azul profundo e preto absoluto para criar profundidade espacial.
 
 ```typescript
-// Exemplo Semântico Genérico
-export const Colors = {
-  // Brand
-  primary:       { light: '#0A84FF', dark: '#5E5CE6' }, // Cores da marca do projeto
-  primarySubtle: { light: '#E5F1FF', dark: '#1A2133' },
-
-  // Status (Universal)
-  success:  { light: '#1AA053', dark: '#34D979' },
-  warning:  { light: '#C97B0C', dark: '#FFBF3C' },
-  danger:   { light: '#D93025', dark: '#FF5A50' },
-  focus:    { light: '#A25AF5', dark: '#B77DF0' },
-
-  // Backgrounds e Neutros
-  systemBg:        { light: '#FFFFFF', dark: '#000000' },
-  secondaryBg:     { light: '#F2F2F7', dark: '#1C1C1E' },
-  label:           { light: '#000000', dark: '#FFFFFF' },
-  secondaryLabel:  { light: 'rgba(60,60,67,0.6)', dark: 'rgba(235,235,245,0.6)' },
-  separator:       { light: 'rgba(60,60,67,0.29)', dark: 'rgba(84,84,88,0.65)' }
+// constants/nav-theme.ts (Base de Referência)
+export const NavColors = {
+  bg0: '#02040E',        // Preto absoluto (Fundo principal)
+  bg1: '#060B1A',        // Navy profundo (Surface secundária)
+  bg2: '#0C1526',        // Azul escuro (Cards e Modais)
+  
+  // Neon Accents (Obrigatório o uso de glow)
+  cyan:   '#00D4FF',     // Primária / Tecnologia
+  violet: '#7B2FFF',     // Secundária / Inteligência
+  green:  '#00FF88',     // Saúde / Sucesso
+  danger: '#FF4466',     // Alerta / Crítico
 } as const;
 ```
 
 ---
 
-## Tipografia Baseada em Hierarquia
+## ✨ Elementos de Design Premium
 
-A padronização previne discrepância:
+### 1. Efeito Glow (Brilhos)
+Sempre que usar uma cor neon (Cyan, Violet, Green), adicione um brilho sutil ao redor.
+-   **Shadows**: `shadowColor: NavColors.cyan, shadowOpacity: 0.3, shadowRadius: 10`.
+-   **Bordas**: Use opacidades baixas (ex: `rgba(0, 212, 255, 0.1)`) para bordas que "vibram".
 
-```typescript
-export const Typography = {
-  title1:     { fontSize: 28, fontWeight: '700', letterSpacing: 0.36 },
-  title2:     { fontSize: 22, fontWeight: '700', letterSpacing: 0.35 },
-  headline:   { fontSize: 17, fontWeight: '600', letterSpacing: -0.41 },
-  body:       { fontSize: 17, fontWeight: '400', letterSpacing: -0.41 },
-  callout:    { fontSize: 16, fontWeight: '400', letterSpacing: -0.32 },
-  subheadline:{ fontSize: 15, fontWeight: '400', letterSpacing: -0.24 },
-  caption1:   { fontSize: 12, fontWeight: '400', letterSpacing: 0    },
-} as const;
-```
+### 2. Acentos Cybernéticos
+Adicione detalhes que remetam a tecnologia de ponta:
+-   **Grid Patterns**: Use padrões de grade sutis no fundo (opacidade 0.02 - 0.05).
+-   **Corner Borders**: Em vez de bordas completas, use acentos apenas nos cantos (L-shaped borders).
+-   **Scan-lines**: Linhas horizontais ultra-finas no topo das divisões ou tab bars.
 
----
-
-## Grade Múltipla de 4px
-
-Use a técnica `4x multiplier` para consistência em padding:
-
-- `4`: entre ícone e texto do botão adjacente
-- `8`: gap geral de stacks
-- `12` – `16`: gutters ou padding de cards
-- `20` – `24`: separações de modais ou seções de headers master
-- `48`: hit point nativo recomendado para a altura de botões
+### 3. Glassmorphism
+Para modais e overlays, use fundos translúcidos com blur (se disponível) ou opacidades de `0.85`.
 
 ---
 
-## Sombras Suaves (New Architecture Ready)
-
-Utilize Box Shadows de CSS modernos em React Native, se adequando da melhor forma (Substitutos de Elevation):
-
-```typescript
-boxShadow: '0 1px 3px rgba(0,0,0,0.08)'   // Sombra natural baixa
-boxShadow: '0 4px 16px rgba(0,0,0,0.16)'  // Modais de alto nível
-```
-
-Use `borderCurve: 'continuous'` para os radiuses aparentarem o padrão premium nativo em plataformas compatíveis.
+## 🧬 Tipografia Futurista
+Use pesos extremos para contraste: **800 (ExtraBold)** para títulos e saudações, e **500 (Medium)** para labels técnicos com espaçamento entre letras (`letterSpacing: 1.5`).
 
 ---
 
-## Interações e Feedbacks Constantes
+## ⚡ Micro-interações e Animações (Reanimated V4)
 
-- Use o `react-native-reanimated` (v4+) nativamente sem medo.
-- Adicione tempos suaves `duration: 200` em transições.
-- Inclua **Feedback Háptico** onde necessário (se o SO aguentar). Impactos de Sucessos requerem `Medium`, remoções ou perigos requerem `Heavy` no `expo-haptics`.
+Interfaces VigiDoc nunca são estáticas.
+-   **Pulse Stats**: Ícones de batimentos ou sinais vitais devem ter um pulse scale de `1.05` contínuo.
+-   **Entry Effects**: Use `FadeInDown` com delays escalonados (`delay: index * 50`) para dar sensação de "boot up" do dashboard.
+-   **Glow Breathing**: Brilhos de fundo devem oscilar opacidade (`withRepeat` + `withSequence`).
 
 ---
 
-## Componentização Abstrata
+## 🛠️ Componentização VigiDoc Standard
 
-No diretório genérico `components/ui/` agrupe sua força central, baseada em comportamentos gerais, não no negócio:
-
-| Primitivo Recomendado | Comportamento |
+| Primitivo | Estética Esperada |
 |---|---|
-| `Button` | Variações claras (Primary, Ghost, Destructive) |
-| `Card` | Layout e boxShadow para container |
-| `TextInput` | Entradas em text/uncontrolled logic e visual feedback (erro de cor) |
-| `EmptyState` | Informa a ausência de registros (Não confunda com loading skeleton) |
-| `StatusBadge` | Sinalização de pílula arredondada vermelha/amarela/verde |
+| `Card` | Borda fina (`1px`), fundo `bg2`, glow sutil e cantos `NavRadius.lg`. |
+| `StatusBadge` | Pílula com ponto pulsante à esquerda (Live Indicator). |
+| `HUDButton` | Efeito press-scale `0.95` e retorno com spring de alta fidelidade. |
 
-## Ícones e SF Symbols
+## 📐 Grade Múltipla de 4px (Consistência)
+Mantenha gutters de `16` ou `20` para respiro, mas use `4` ou `8` para elementos tecnicamente agrupados (ícone + texto).
 
-Recomenda-se no ecossistema iOS carregar o `expo-image` usando SF symbols diretamente:
-`<Image source="sf:star.fill" />`.
-Isso quebra burocracias de bibliotecas web pesadas para apps de alta voltagem. No Android crie um fallback gracioso.

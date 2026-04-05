@@ -6,7 +6,8 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "vigidocapp",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#02040E",
     "ios": {
       "icon": "./assets/expo.icon"
     },
@@ -18,7 +19,13 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.ruh7r4.vigidocapp"
+      "package": "com.ruh7r4.vigidocapp",
+      "backgroundColor": "#02040E",
+      "softwareKeyboardLayoutMode": "resize",
+      "navigationBar": {
+        "backgroundColor": "#02040E",
+        "barStyle": "light-content"
+      }
     },
     "web": {
       "output": "static",

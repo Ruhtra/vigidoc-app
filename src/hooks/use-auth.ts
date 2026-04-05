@@ -36,6 +36,13 @@ export function useAuth(): UseAuthType {
       }
 
       setSession(data);
+
+      // Usuário pendente: redireciona para tela de acesso pendente
+      if (data?.user?.status === 'pending') {
+        router.replace('/(auth)/pending-access');
+        return;
+      }
+
       // Navega para a raiz protegida da aplicação
       router.replace('/(tabs)');
     },
@@ -47,7 +54,7 @@ export function useAuth(): UseAuthType {
     await AuthService.signOut();
     clearSession();
     setIsLoading(false);
-    router.replace('/login');
+    router.replace('/(auth)/login');
   }, [clearSession, router]);
 
   return { isLoading, error, login, logout };

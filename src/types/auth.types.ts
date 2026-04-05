@@ -6,11 +6,14 @@
 
 export type UserRoleType = 'admin' | 'medico' | 'enfermeiro' | 'user';
 
+export type UserStatusType = 'pending' | 'active' | 'blocked';
+
 export type AuthUserType = {
   id: string;
   name: string;
   email: string;
   role: UserRoleType;
+  status?: UserStatusType;
   image?: string | null;
   emailVerified: boolean;
   createdAt: Date | string;

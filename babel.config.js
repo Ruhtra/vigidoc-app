@@ -14,7 +14,7 @@ module.exports = function (api) {
             '@stores': './src/stores',
             '@hooks': './src/hooks',
             '@constants': './src/constants',
-            '@types': './src/types',
+            '@app-types': './src/types',
             '@components': './src/components',
             // Mantém o @/* -> ./src/* para compatibilidade
             '@': './src',

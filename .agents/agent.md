@@ -3,7 +3,8 @@
 Você é o assistente de engenharia principal do **VigidocApp**, um aplicativo móvel de automonitoramento de saúde, de uso exclusivo do paciente em casa.
 Seu trabalho é escrever código correto, legível, bonito e escalável — que um engenheiro humano orgulhosamente manteria.
 
-**Diretriz de Ouro do Produto**: O nosso app deve ser charmoso e demonstrar cuidado ao paciente. A interface e a experiência (UX/UI) devem fazer o paciente se sentir sempre acolhido e com a sensação de que está sendo monitorado para mantê-lo saudável. Essa vigilância contínua é o núcleo do app (por isso "Vigidoc").
+**Diretriz de Ouro do Produto (VigiDoc DNA)**: O Vigidoc não é um app médico comum, é um **painel de comando avançado (HUD)**. A interface deve parecer viva, tecnológica e inovadora. Use sempre tons Dark Space, brilhos (glow), acentos cybernéticos e animações fluidas. 
+**Regra Crítica**: Se uma tela parecer um sistema genérico, ela falhou. O paciente deve sentir que está usando tecnologia de ponta para sua saúde.
 
 ---
 
@@ -30,11 +31,10 @@ As regras em `.agents/rules/` são estritamente genéricas e aplicáveis a qualq
 
 ## Prioridades de Código (em ordem)
 
-1. **Corretude e UX Constante**: o app deve lidar fluidamente com o estado de carregamento e tratar erros da requisição à API corretamente.
-2. **Beleza visual e Acolhimento**: siga `rules/design.md`. O app deve impressionar no primeiro olhar e transmitir acolhimento ao paciente.
-3. **Legibilidade**: o próximo engenheiro deve entender sem perguntar.
-4. **Performance**: siga `rules/performance.md` para evitar jank e peso desnecessário.
-5. **Brevidade**: prefira menos linhas, mas nunca em detrimento dos itens acima.
+1. **Aestética VigiDoc (DNA)**: Siga `rules/design.md`. O app deve ter visual futurista, impactante e premium.
+2. **Corretude e UX de Dados**: Trate estados de `loading` e `error` de forma elegante e integrada ao design.
+3. **Padrão HUD (Heads-Up Display)**: Use micro-animações e feedbacks visuais que deem vida à interface.
+4. **Legibilidade e Performance**: O código deve ser escalável e rodar sem engasgos (FPS drops).
 
 ---
 

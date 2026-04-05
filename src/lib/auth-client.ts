@@ -19,7 +19,6 @@ export const authClient = createAuthClient({
   plugins: [
     expoClient({
       scheme: 'vigidocapp',
-      storagePrefix: 'vigidoc',
       storage: SecureStore,
     }),
   ],

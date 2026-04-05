@@ -4,16 +4,14 @@ import React, { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
-  Animated,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  View,
+  View
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import Reanimated, {
   FadeInDown,
   FadeInUp,
@@ -22,35 +20,38 @@ import Reanimated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 
-import { loginSchema, type LoginFormSchemaType } from '@lib/schemas/auth.schema';
 import { useAuth } from '@hooks/use-auth';
+import { NavColorsDark as NavColors, NavSpacing, NavRadius } from '@/constants/nav-theme';
+import { loginSchema, type LoginFormSchemaType } from '@lib/schemas/auth.schema';
+import { Logo } from '@components/ui/logo';
 
 /* ─────────────────────────────────────────────────────────── */
 /*  Design Tokens                                              */
 /* ─────────────────────────────────────────────────────────── */
 
 const palette = {
-  // Brand teal — VigiDoc
-  teal500: '#0D9488',
-  teal400: '#2DD4BF',
-  teal300: '#5EEAD4',
+  // Brand (Soft Medical Cyan)
+  teal500: '#2DD4BF',
+  teal400: '#5EEAD4',
+  teal300: '#99F6E4',
   emerald500: '#10B981',
-  // Dark backgrounds
-  bg: '#0A0F1E',
-  bgCard: '#111827',
-  bgInput: '#1A2236',
-  bgInputFocus: '#1E2A45',
-  border: '#1F2D48',
-  borderFocus: '#0D9488',
-  borderError: '#EF4444',
+  // Backgrounds (Slate Dark)
+  bg: '#020617',
+  bgCard: '#0F172A',
+  bgInput: '#1E293B',
+  bgInputFocus: '#334155',
+  border: '#334155',
+  borderFocus: '#2DD4BF',
+  borderError: '#F43F5E',
   // Text
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  textMuted: '#6B7280',
-  textError: '#F87171',
-  // Google (disabled)
-  googleBg: '#1F2937',
+  textPrimary: '#F8FAFC',
+  textSecondary: '#94A3B8',
+  textMuted: '#64748B',
+  textError: '#FB7185',
+  // Google
+  googleBg: '#1E293B',
   white: '#FFFFFF',
 } as const;
 
@@ -87,9 +88,12 @@ type FieldInputProps = {
   autoCapitalize?: 'none' | 'sentences';
   rightElement?: React.ReactNode;
   testID?: string;
+  returnKeyType?: 'next' | 'done' | 'send';
+  onSubmitEditing?: () => void;
+  blurOnSubmit?: boolean;
 };
 
-function FieldInput({
+const FieldInput = React.forwardRef<TextInput, FieldInputProps>(({
   label,
   placeholder,
   value,
@@ -102,31 +106,32 @@ function FieldInput({
   autoCapitalize = 'none',
   rightElement,
   testID,
-}: FieldInputProps) {
-  const borderColor = useSharedValue(palette.border);
-  const bgColor = useSharedValue(palette.bgInput);
+  returnKeyType,
+  onSubmitEditing,
+  blurOnSubmit,
+}, ref) => {
+  const borderColor = useSharedValue<string>(palette.border);
+  const bgColor = useSharedValue<string>(palette.bgInput);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    borderColor: borderColor.value,
-    backgroundColor: bgColor.value,
+    borderColor: withTiming(borderColor.value, { duration: 200 }),
+    backgroundColor: withTiming(bgColor.value, { duration: 200 }),
   }));
 
   function handleFocus() {
-    borderColor.value = withTiming(
-      error ? palette.borderError : palette.borderFocus,
-      { duration: 200 }
-    );
-    bgColor.value = withTiming(palette.bgInputFocus, { duration: 200 });
+    borderColor.value = error ? palette.borderError : palette.borderFocus;
+    bgColor.value = palette.bgInputFocus;
   }
 
   function handleBlur() {
-    borderColor.value = withTiming(
-      error ? palette.borderError : palette.border,
-      { duration: 200 }
-    );
-    bgColor.value = withTiming(palette.bgInput, { duration: 200 });
-    onBlur();
+    borderColor.value = error ? palette.borderError : palette.border;
+    bgColor.value = palette.bgInput;
+    onBlur && onBlur();
   }
+
+  React.useEffect(() => {
+    borderColor.value = error ? palette.borderError : palette.border;
+  }, [error, borderColor]);
 
   return (
     <View style={styles.fieldWrapper}>
@@ -146,6 +151,10 @@ function FieldInput({
           autoComplete={autoComplete}
           autoCapitalize={autoCapitalize}
           autoCorrect={false}
+          ref={ref}
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmitEditing}
+          blurOnSubmit={blurOnSubmit}
         />
         {rightElement && (
           <View style={styles.inputRight}>{rightElement}</View>
@@ -161,7 +170,7 @@ function FieldInput({
       ) : null}
     </View>
   );
-}
+});
 
 /* ─────────────────────────────────────────────────────────── */
 /*  Main Screen                                                */
@@ -172,6 +181,8 @@ export default function LoginScreen() {
   const { login, isLoading, error: authError } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
+  const scrollRef = useRef<KeyboardAwareScrollView>(null);
+  const passwordRef = useRef<TextInput>(null);
 
   const {
     control,
@@ -201,29 +212,23 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
+    <KeyboardAwareScrollView 
+      ref={scrollRef}
       style={styles.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      contentContainerStyle={styles.scroll}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      enableOnAndroid={true}
+      extraHeight={160}
+      extraScrollHeight={32}
+      bounces={false}
+      enableResetScrollToCoords={false}
+      keyboardOpeningTime={0}
+      enableAutomaticScroll={true}
     >
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
         {/* ── Logo + Header ── */}
         <Reanimated.View entering={FadeInDown.duration(500).delay(0)} style={styles.header}>
-          {/* Logo mark */}
-          <View style={styles.logoWrapper}>
-            <View style={styles.logoPill}>
-              <Text style={styles.logoActivity}>♥</Text>
-            </View>
-          </View>
-          <Text style={styles.brandName}>
-            Vigi<Text style={styles.brandAccent}>Doc</Text>
-          </Text>
-          <Text style={styles.brandTagline}>
-            Monitoramento inteligente de saúde
-          </Text>
+          <Logo size="lg" showTagline />
         </Reanimated.View>
 
         {/* ── Card ── */}
@@ -274,6 +279,9 @@ export default function LoginScreen() {
                 autoComplete="email"
                 autoCapitalize="none"
                 testID="input-email"
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => setTimeout(() => passwordRef.current?.focus(), 150)}
               />
             )}
           />
@@ -284,6 +292,7 @@ export default function LoginScreen() {
             name="password"
             render={({ field: { onChange, onBlur, value } }) => (
               <FieldInput
+                ref={passwordRef}
                 label="Senha"
                 placeholder="••••••••"
                 value={value}
@@ -293,13 +302,19 @@ export default function LoginScreen() {
                 secureTextEntry={!showPassword}
                 autoComplete="current-password"
                 testID="input-password"
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit(onSubmit)}
                 rightElement={
                   <Pressable
                     onPress={() => setShowPassword((v) => !v)}
                     hitSlop={8}
                     accessibilityLabel={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                   >
-                    <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁'}</Text>
+                    <Ionicons 
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'} 
+                      size={20} 
+                      color={palette.textSecondary} 
+                    />
                   </Pressable>
                 }
               />
@@ -361,8 +376,7 @@ export default function LoginScreen() {
           <View style={styles.footerRow}>
             <Text style={styles.footerText}>Sem acesso?</Text>
             <Pressable
-              disabled
-              accessibilityState={{ disabled: true }}
+              onPress={() => router.push('/(auth)/request-access')}
               testID="btn-request-access"
             >
               <Text style={styles.requestAccessText}>Solicitar acesso</Text>
@@ -377,8 +391,7 @@ export default function LoginScreen() {
         >
           © {new Date().getFullYear()} VigiDoc · Todos os direitos reservados
         </Reanimated.Text>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   );
 }
 
@@ -402,42 +415,6 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: spacing.xl,
-  },
-  logoWrapper: {
-    marginBottom: spacing.sm,
-  },
-  logoPill: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: palette.teal500,
-    alignItems: 'center',
-    justifyContent: 'center',
-    // Shadow
-    shadowColor: palette.teal400,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.45,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  logoActivity: {
-    fontSize: 26,
-    color: palette.white,
-  },
-  brandName: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: palette.textPrimary,
-    letterSpacing: 0.4,
-    marginBottom: 4,
-  },
-  brandAccent: {
-    color: palette.teal400,
-  },
-  brandTagline: {
-    fontSize: 13,
-    color: palette.textMuted,
-    letterSpacing: 0.2,
   },
 
   /* Card */
@@ -657,10 +634,8 @@ const styles = StyleSheet.create({
   },
   requestAccessText: {
     fontSize: 13,
-    color: palette.textMuted,
+    color: palette.teal400,
     fontWeight: '600',
-    textDecorationLine: 'line-through',
-    opacity: 0.5,
   },
 
   /* Copyright */

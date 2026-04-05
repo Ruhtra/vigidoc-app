@@ -1,22 +1,53 @@
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import React from 'react';
-import { useColorScheme } from 'react-native';
+import { Tabs } from 'expo-router';
+import React, { useState } from 'react';
+import { View } from 'react-native';
 
-import { Colors } from '@constants/theme';
+import { CustomTabBar } from '@components/navigation/custom-tab-bar';
+import { SideDrawer } from '@components/navigation/side-drawer';
+import { useThemeColors } from '@hooks/use-theme-colors';
 
 export default function TabsLayout() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme ?? 'light'];
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const NavColors = useThemeColors();
 
   return (
-    <NativeTabs
-      backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}
-    >
-      <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
+    <View style={{ flex: 1, backgroundColor: NavColors.bg0 }}>
+      <Tabs
+        screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: NavColors.bg0 } }}
+        tabBar={(props) => (
+          <CustomTabBar
+            {...props}
+            onMenuPress={() => setDrawerOpen(true)}
+          />
+        )}
+      >
+        <Tabs.Screen
+          name="index"
+          options={{ title: 'Home' }}
+        />
+        <Tabs.Screen
+          name="historico"
+          options={{ title: 'Histórico' }}
+        />
+        <Tabs.Screen
+          name="notificacoes"
+          options={{ title: 'Notificações' }}
+        />
+        <Tabs.Screen
+          name="meu-medico"
+          options={{ title: 'Meu Médico' }}
+        />
+        <Tabs.Screen
+          name="perfil"
+          options={{ title: 'Perfil', href: null }}
+        />
+      </Tabs>
+
+      {/* Side drawer rendered above all tabs */}
+      <SideDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+      />
+    </View>
   );
 }
