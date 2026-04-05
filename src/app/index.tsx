@@ -1,98 +1,181 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import React, { useEffect, useState } from 'react';
+import { Alert, Button, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 export default function HomeScreen() {
+  const [hour, setHour] = useState('07');
+  const [minute, setMinute] = useState('00');
+  const [second, setSecond] = useState('00');
+
+  useEffect(() => {
+    (async () => {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== 'granted') {
+        Alert.alert('Erro', 'As permissões de notificação não foram concedidas!');
+      }
+
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'default',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+        });
+      }
+    })();
+  }, []);
+
+  const sendImmediateNotification = async () => {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Notificação Imediata 🚀',
+        body: 'Esta é a notificação que você disparou agora mesmo!',
+      },
+      trigger: null, // Dispara imediatamente
+    });
+  };
+
+  const scheduleNotification = async () => {
+    const h = parseInt(hour, 10);
+    const m = parseInt(minute, 10);
+    const s = parseInt(second, 10);
+
+    if (isNaN(h) || isNaN(m) || isNaN(s) || h < 0 || h > 23 || m < 0 || m > 59 || s < 0 || s > 59) {
+      Alert.alert('Erro', 'Por favor, insira valores válidos para hora, minuto e segundo.');
+      return;
+    }
+
+    const triggerDate = new Date();
+    triggerDate.setHours(h);
+    triggerDate.setMinutes(m);
+    triggerDate.setSeconds(s);
+    triggerDate.setMilliseconds(0);
+
+    // Se o horário especificado já passou no dia de hoje, agenda para o amanhã
+    if (triggerDate <= new Date()) {
+      triggerDate.setDate(triggerDate.getDate() + 1);
+    }
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `⏰ Alarme: ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`,
+        body: 'Esta é sua notificação agendada com precisão.',
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: triggerDate,
+      },
+    });
+
+    Alert.alert('Sucesso', `Notificação agendada para: \n${triggerDate.toLocaleString()}`);
+  };
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.title}>Validação de Notificações</Text>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+      <View style={styles.section}>
+        <Text style={styles.subtitle}>1. Disparar Agora</Text>
+        <Button title="Enviar Notificação Imediata" onPress={sendImmediateNotification} />
+      </View>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
+      <View style={styles.section}>
+        <Text style={styles.subtitle}>2. Agendar Notificação</Text>
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            keyboardType="numeric"
+            maxLength={2}
+            value={hour}
+            onChangeText={setHour}
+            placeholder="HH"
           />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
+          <Text style={styles.colon}>:</Text>
+          <TextInput
+            style={styles.input}
+            keyboardType="numeric"
+            maxLength={2}
+            value={minute}
+            onChangeText={setMinute}
+            placeholder="MM"
           />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+          <Text style={styles.colon}>:</Text>
+          <TextInput
+            style={styles.input}
+            keyboardType="numeric"
+            maxLength={2}
+            value={second}
+            onChangeText={setSecond}
+            placeholder="SS"
+          />
+        </View>
+        <Button title="Salvar Agendamento" onPress={scheduleNotification} />
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    padding: 24,
     justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    backgroundColor: '#f5f5f5',
   },
   title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 40,
+  },
+  section: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 8,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  subtitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 4,
+    padding: 10,
+    fontSize: 18,
+    width: 60,
     textAlign: 'center',
   },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  colon: {
+    fontSize: 24,
+    marginHorizontal: 8,
   },
 });
