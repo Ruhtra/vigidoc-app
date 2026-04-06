@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
@@ -23,56 +23,19 @@ import Reanimated, {
 import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '@hooks/use-auth';
-import { NavColorsDark as NavColors, NavSpacing, NavRadius } from '@/constants/nav-theme';
+import { NavSpacing, NavRadius } from '@/constants/nav-theme';
 import { loginSchema, type LoginFormSchemaType } from '@lib/schemas/auth.schema';
 import { Logo } from '@components/ui/logo';
-
-/* ─────────────────────────────────────────────────────────── */
-/*  Design Tokens                                              */
-/* ─────────────────────────────────────────────────────────── */
-
-const palette = {
-  // Brand (Soft Medical Cyan)
-  teal500: '#2DD4BF',
-  teal400: '#5EEAD4',
-  teal300: '#99F6E4',
-  emerald500: '#10B981',
-  // Backgrounds (Slate Dark)
-  bg: '#020617',
-  bgCard: '#0F172A',
-  bgInput: '#1E293B',
-  bgInputFocus: '#334155',
-  border: '#334155',
-  borderFocus: '#2DD4BF',
-  borderError: '#F43F5E',
-  // Text
-  textPrimary: '#F8FAFC',
-  textSecondary: '#94A3B8',
-  textMuted: '#64748B',
-  textError: '#FB7185',
-  // Google
-  googleBg: '#1E293B',
-  white: '#FFFFFF',
-} as const;
-
-const spacing = {
-  xs: 4,
-  sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
-  xxl: 48,
-} as const;
+import { useThemeColors } from '@hooks/use-theme-colors';
+import { useThemeStore } from '@stores/theme.store';
+import { ThemeToggle } from '@components/ui/theme-toggle';
 
 /* ─────────────────────────────────────────────────────────── */
 /*  Sub-components                                             */
 /* ─────────────────────────────────────────────────────────── */
 
-/** Ícone SVG inline para o Google (como texto placeholder) */
 function GoogleIcon() {
-  return (
-    <Text style={styles.googleIconText}>G</Text>
-  );
+  return <Text style={styles.googleIconText}>G</Text>;
 }
 
 type FieldInputProps = {
@@ -110,8 +73,9 @@ const FieldInput = React.forwardRef<TextInput, FieldInputProps>(({
   onSubmitEditing,
   blurOnSubmit,
 }, ref) => {
-  const borderColor = useSharedValue<string>(palette.border);
-  const bgColor = useSharedValue<string>(palette.bgInput);
+  const NavColors = useThemeColors();
+  const borderColor = useSharedValue<string>(NavColors.border);
+  const bgColor = useSharedValue<string>(NavColors.bg2);
 
   const animatedStyle = useAnimatedStyle(() => ({
     borderColor: withTiming(borderColor.value, { duration: 200 }),
@@ -119,29 +83,30 @@ const FieldInput = React.forwardRef<TextInput, FieldInputProps>(({
   }));
 
   function handleFocus() {
-    borderColor.value = error ? palette.borderError : palette.borderFocus;
-    bgColor.value = palette.bgInputFocus;
+    borderColor.value = error ? NavColors.danger : NavColors.cyan;
+    bgColor.value = NavColors.bg3;
   }
 
   function handleBlur() {
-    borderColor.value = error ? palette.borderError : palette.border;
-    bgColor.value = palette.bgInput;
+    borderColor.value = error ? NavColors.danger : NavColors.border;
+    bgColor.value = NavColors.bg2;
     onBlur && onBlur();
   }
 
   React.useEffect(() => {
-    borderColor.value = error ? palette.borderError : palette.border;
-  }, [error, borderColor]);
+    borderColor.value = error ? NavColors.danger : NavColors.border;
+    bgColor.value = NavColors.bg2;
+  }, [error, NavColors, borderColor, bgColor]);
 
   return (
     <View style={styles.fieldWrapper}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text style={[styles.fieldLabel, { color: NavColors.textSecondary }]}>{label}</Text>
       <Reanimated.View style={[styles.inputContainer, animatedStyle]}>
         <TextInput
           testID={testID}
-          style={styles.textInput}
+          style={[styles.textInput, { color: NavColors.textPrimary }]}
           placeholder={placeholder}
-          placeholderTextColor={palette.textMuted}
+          placeholderTextColor={NavColors.textMuted}
           value={value}
           onChangeText={onChange}
           onFocus={handleFocus}
@@ -163,7 +128,7 @@ const FieldInput = React.forwardRef<TextInput, FieldInputProps>(({
       {error ? (
         <Reanimated.Text
           entering={FadeInDown.duration(180)}
-          style={styles.errorText}
+          style={[styles.errorText, { color: NavColors.danger }]}
         >
           {error}
         </Reanimated.Text>
@@ -179,6 +144,9 @@ const FieldInput = React.forwardRef<TextInput, FieldInputProps>(({
 export default function LoginScreen() {
   const router = useRouter();
   const { login, isLoading, error: authError } = useAuth();
+  const NavColors = useThemeColors();
+  const storeTheme = useThemeStore(s => s.theme);
+  const isDark = storeTheme === 'dark';
 
   const [showPassword, setShowPassword] = useState(false);
   const scrollRef = useRef<KeyboardAwareScrollView>(null);
@@ -198,10 +166,12 @@ export default function LoginScreen() {
     await login(data.email, data.password, data.remember ?? false);
   };
 
-  // Animated submit button press scale
   const submitScale = useSharedValue(1);
   const submitAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: submitScale.value }],
+    backgroundColor: withTiming(NavColors.cyan, { duration: 250 }),
+    shadowColor: withTiming(NavColors.cyan, { duration: 250 }),
+    borderRadius: 14,
   }));
 
   function handlePressIn() {
@@ -214,7 +184,7 @@ export default function LoginScreen() {
   return (
     <KeyboardAwareScrollView 
       ref={scrollRef}
-      style={styles.root}
+      style={[styles.root, { backgroundColor: NavColors.bg0 }]}
       contentContainerStyle={styles.scroll}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
@@ -226,40 +196,67 @@ export default function LoginScreen() {
       keyboardOpeningTime={0}
       enableAutomaticScroll={true}
     >
+        {/* ── Theme Switcher ── */}
+        <View style={styles.topRightActions}>
+          <ThemeToggle />
+        </View>
+
         {/* ── Logo + Header ── */}
         <Reanimated.View entering={FadeInDown.duration(500).delay(0)} style={styles.header}>
           <Logo size="lg" showTagline />
         </Reanimated.View>
 
         {/* ── Card ── */}
-        <Reanimated.View entering={FadeInUp.duration(500).delay(100)} style={styles.card}>
+        <Reanimated.View 
+          entering={FadeInUp.duration(500).delay(100)} 
+          style={[
+            styles.card, 
+            { 
+              backgroundColor: NavColors.bg1, 
+              borderColor: NavColors.borderSoft,
+              shadowOpacity: isDark ? 0.3 : 0.1
+            }
+          ]}
+        >
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Bem-vindo de volta</Text>
-            <Text style={styles.cardSubtitle}>
+            <Text style={[styles.cardTitle, { color: NavColors.textPrimary }]}>Bem-vindo de volta</Text>
+            <Text style={[styles.cardSubtitle, { color: NavColors.textSecondary }]}>
               Entre com suas credenciais para acessar a plataforma
             </Text>
           </View>
 
           {/* Google (desabilitado) */}
-          <View style={styles.googleButton} accessibilityState={{ disabled: true }}>
-            <GoogleIcon />
-            <Text style={styles.googleText}>Continuar com Google</Text>
-            <View style={styles.googleBadge}>
-              <Text style={styles.googleBadgeText}>Em breve</Text>
+          <View 
+            style={[
+              styles.googleButton, 
+              { backgroundColor: NavColors.bg3, borderColor: NavColors.border }
+            ]} 
+            accessibilityState={{ disabled: true }}
+          >
+            <Text style={[styles.googleIconText, { color: NavColors.textSecondary }]}>G</Text>
+            <Text style={[styles.googleText, { color: NavColors.textSecondary }]}>Continuar com Google</Text>
+            <View style={[styles.googleBadge, { backgroundColor: NavColors.bg4, borderColor: NavColors.borderBright }]}>
+              <Text style={[styles.googleBadgeText, { color: NavColors.cyan }]}>Em breve</Text>
             </View>
           </View>
 
           {/* Divisor */}
           <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>ou entre com e-mail</Text>
-            <View style={styles.dividerLine} />
+            <View style={[styles.dividerLine, { backgroundColor: NavColors.border }]} />
+            <Text style={[styles.dividerText, { color: NavColors.textMuted }]}>OU E-MAIL</Text>
+            <View style={[styles.dividerLine, { backgroundColor: NavColors.border }]} />
           </View>
 
           {/* Erro global da API */}
           {authError && (
-            <Reanimated.View entering={FadeInDown.duration(200)} style={styles.apiErrorBox}>
-              <Text style={styles.apiErrorText}>⚠ {authError}</Text>
+            <Reanimated.View 
+              entering={FadeInDown.duration(200)} 
+              style={[
+                styles.apiErrorBox, 
+                { backgroundColor: NavColors.danger + '15', borderColor: NavColors.danger + '30' }
+              ]}
+            >
+              <Text style={[styles.apiErrorText, { color: NavColors.danger }]}>⚠ {authError}</Text>
             </Reanimated.View>
           )}
 
@@ -313,7 +310,7 @@ export default function LoginScreen() {
                     <Ionicons 
                       name={showPassword ? 'eye-off-outline' : 'eye-outline'} 
                       size={20} 
-                      color={palette.textSecondary} 
+                      color={NavColors.textSecondary} 
                     />
                   </Pressable>
                 }
@@ -321,8 +318,8 @@ export default function LoginScreen() {
             )}
           />
 
-          {/* Lembrar + Esqueci a senha */}
-          <View style={styles.row}>
+          {/* Lembrar me & Esqueci Senha */}
+          <View style={styles.actionRow}>
             <Controller
               control={control}
               name="remember"
@@ -332,54 +329,51 @@ export default function LoginScreen() {
                   onPress={() => onChange(!value)}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: !!value }}
-                  testID="checkbox-remember"
                 >
-                  <View style={[styles.checkbox, value && styles.checkboxActive]}>
-                    {value && <Text style={styles.checkmark}>✓</Text>}
+                  <View 
+                    style={[
+                      styles.checkbox, 
+                      { borderColor: NavColors.borderBright, backgroundColor: NavColors.bg3 }, 
+                      value && { backgroundColor: NavColors.cyan, borderColor: NavColors.cyan }
+                    ]}
+                  >
+                    {value && <Text style={[styles.checkmark, { color: isDark ? NavColors.bg0 : '#FFF' }]}>✓</Text>}
                   </View>
-                  <Text style={styles.rememberText}>Lembrar de mim</Text>
+                  <Text style={[styles.rememberText, { color: NavColors.textSecondary }]}>Lembrar de mim</Text>
                 </Pressable>
               )}
             />
 
-            <Pressable
-              onPress={() => router.push('/(auth)/forgot-password' as never)}
-              hitSlop={8}
-              testID="btn-forgot-password"
-            >
-              <Text style={styles.forgotText}>Esqueci a senha</Text>
+            <Pressable onPress={() => router.push('/(auth)/forgot-password' as any)}>
+              <Text style={[styles.forgotText, { color: NavColors.cyan }]}>Esqueci a senha?</Text>
             </Pressable>
           </View>
 
           {/* Botão de Login */}
-          <Reanimated.View style={submitAnimatedStyle}>
+          <Reanimated.View style={[submitAnimatedStyle, { marginVertical: NavSpacing.md }]}>
             <Pressable
-              testID="btn-login"
               onPressIn={handlePressIn}
               onPressOut={handlePressOut}
               onPress={handleSubmit(onSubmit)}
               disabled={isLoading}
               style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
-              accessibilityRole="button"
-              accessibilityLabel="Entrar na plataforma"
-              accessibilityState={{ disabled: isLoading }}
             >
               {isLoading ? (
-                <ActivityIndicator color={palette.white} size="small" />
+                <ActivityIndicator color={isDark ? NavColors.bg0 : '#FFF'} size="small" />
               ) : (
-                <Text style={styles.submitText}>Entrar →</Text>
+                <Text style={[styles.submitText, { color: isDark ? NavColors.bg0 : '#FFF' }]}>Entrar na Plataforma →</Text>
               )}
             </Pressable>
           </Reanimated.View>
 
           {/* Solicitar acesso */}
           <View style={styles.footerRow}>
-            <Text style={styles.footerText}>Sem acesso?</Text>
+            <Text style={[styles.footerText, { color: NavColors.textMuted }]}>Sem acesso?</Text>
             <Pressable
               onPress={() => router.push('/(auth)/request-access')}
               testID="btn-request-access"
             >
-              <Text style={styles.requestAccessText}>Solicitar acesso</Text>
+              <Text style={[styles.requestAccessText, { color: NavColors.cyan }]}>Solicitar acesso</Text>
             </Pressable>
           </View>
         </Reanimated.View>
@@ -387,7 +381,7 @@ export default function LoginScreen() {
         {/* Copyright */}
         <Reanimated.Text
           entering={FadeInDown.duration(400).delay(300)}
-          style={styles.copyright}
+          style={[styles.copyright, { color: NavColors.textMuted }]}
         >
           © {new Date().getFullYear()} VigiDoc · Todos os direitos reservados
         </Reanimated.Text>
@@ -395,76 +389,57 @@ export default function LoginScreen() {
   );
 }
 
-/* ─────────────────────────────────────────────────────────── */
-/*  Styles                                                     */
-/* ─────────────────────────────────────────────────────────── */
-
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: palette.bg,
   },
   scroll: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xxl,
+    paddingHorizontal: NavSpacing.md,
+    paddingVertical: NavSpacing.xxl,
   },
-
-  /* Header */
   header: {
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: NavSpacing.xl,
   },
-
-  /* Card */
   card: {
-    backgroundColor: palette.bgCard,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: palette.border,
-    padding: spacing.lg,
-    // Shadow
+    padding: NavSpacing.lg,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
     shadowRadius: 24,
-    elevation: 10,
-    gap: spacing.md,
+    elevation: 8,
+    gap: NavSpacing.md,
+    minHeight: 460, // Mantendo padrão de altura entre telas
   },
   cardHeader: {
-    marginBottom: spacing.xs,
+    marginBottom: NavSpacing.xs,
   },
   cardTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: palette.textPrimary,
     letterSpacing: 0.2,
   },
   cardSubtitle: {
     fontSize: 14,
-    color: palette.textSecondary,
     marginTop: 4,
     lineHeight: 20,
   },
-
-  /* Google button (disabled) */
   googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: palette.googleBg,
+    gap: NavSpacing.sm,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: palette.border,
     paddingVertical: 13,
-    paddingHorizontal: spacing.md,
-    opacity: 0.55,
+    paddingHorizontal: NavSpacing.md,
+    opacity: 0.6,
   },
   googleIconText: {
     fontSize: 18,
     fontWeight: '700',
-    color: palette.textSecondary,
     width: 24,
     textAlign: 'center',
   },
@@ -472,60 +447,46 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '600',
-    color: palette.textSecondary,
   },
   googleBadge: {
-    backgroundColor: palette.bgInput,
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 3,
+    borderWidth: 1,
   },
   googleBadgeText: {
     fontSize: 11,
-    color: palette.textMuted,
     fontWeight: '600',
     letterSpacing: 0.3,
   },
-
-  /* Divider */
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: NavSpacing.sm,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: palette.border,
   },
   dividerText: {
     fontSize: 12,
-    color: palette.textMuted,
     letterSpacing: 0.3,
   },
-
-  /* API error */
   apiErrorBox: {
-    backgroundColor: 'rgba(239,68,68,0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.3)',
     borderRadius: 12,
-    padding: spacing.sm + 4,
+    padding: NavSpacing.sm + 4,
   },
   apiErrorText: {
-    color: palette.textError,
     fontSize: 13,
     lineHeight: 18,
   },
-
-  /* Field */
   fieldWrapper: {
     gap: 6,
   },
   fieldLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: palette.textSecondary,
     letterSpacing: 0.3,
   },
   inputContainer: {
@@ -533,28 +494,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1.5,
     borderRadius: 14,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: NavSpacing.md,
     height: 52,
   },
   textInput: {
     flex: 1,
     fontSize: 15,
-    color: palette.textPrimary,
     height: '100%',
   },
   inputRight: {
-    marginLeft: spacing.sm,
-  },
-  eyeIcon: {
-    fontSize: 18,
+    marginLeft: NavSpacing.sm,
   },
   errorText: {
     fontSize: 12,
-    color: palette.textError,
     marginTop: 2,
   },
-
-  /* Remember + Forgot */
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -571,44 +525,38 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 6,
     borderWidth: 1.5,
-    borderColor: palette.border,
-    backgroundColor: palette.bgInput,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxActive: {
-    backgroundColor: palette.teal500,
-    borderColor: palette.teal500,
-  },
   checkmark: {
-    color: palette.white,
     fontSize: 12,
     fontWeight: '700',
   },
   rememberText: {
     fontSize: 13,
-    color: palette.textSecondary,
   },
   forgotText: {
     fontSize: 13,
-    color: palette.teal400,
     fontWeight: '600',
   },
-
-  /* Submit */
   submitButton: {
     height: 52,
-    borderRadius: 14,
-    backgroundColor: palette.teal500,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
-    // Glow
-    shadowColor: palette.teal500,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
     elevation: 6,
+    width: '100%',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    columnGap: 8,
+    rowGap: 12,
+    marginVertical: NavSpacing.sm,
   },
   submitButtonDisabled: {
     opacity: 0.65,
@@ -616,34 +564,35 @@ const styles = StyleSheet.create({
   submitText: {
     fontSize: 16,
     fontWeight: '700',
-    color: palette.white,
     letterSpacing: 0.4,
   },
-
-  /* Footer */
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    flexWrap: 'wrap',
     gap: 6,
-    marginTop: 4,
+    marginTop: NavSpacing.sm,
+    paddingVertical: NavSpacing.xs,
   },
   footerText: {
-    fontSize: 13,
-    color: palette.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
   },
   requestAccessText: {
-    fontSize: 13,
-    color: palette.teal400,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
   },
-
-  /* Copyright */
   copyright: {
-    fontSize: 11,
-    color: palette.textMuted,
+    fontSize: 12,
     textAlign: 'center',
-    marginTop: spacing.xl,
+    marginTop: NavSpacing.xxl,
     letterSpacing: 0.3,
+  },
+  topRightActions: {
+    paddingHorizontal: NavSpacing.md,
+    alignItems: 'flex-end',
+    marginTop: NavSpacing.md,
   },
 });

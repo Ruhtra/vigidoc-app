@@ -44,8 +44,10 @@ export const NavColorsDark = {
   borderBright: 'rgba(45,212,191,0.2)',
   borderSoft: 'rgba(255,255,255,0.03)',
 
-  // ── Overlay ───────────────────────────────
-  overlay: 'rgba(2,6,23,0.85)',
+  // ── Semantic Aliases ──────────────────────
+  bgInput: '#1E293B',    // Slate-800
+  bgSurface: '#0F172A',  // Slate-900
+  textError: '#F43F5E',
 } as const;
 
 export const NavColorsLight = {
@@ -89,8 +91,10 @@ export const NavColorsLight = {
   borderBright: 'rgba(15,23,42,0.15)',
   borderSoft: 'rgba(15,23,42,0.04)',
 
-  // ── Overlay ───────────────────────────────
-  overlay: 'rgba(15,23,42,0.6)',
+  // ── Semantic Aliases ──────────────────────
+  bgInput: '#F8FAFC',    // Slate-50
+  bgSurface: '#FFFFFF',
+  textError: '#EF4444',
 } as const;
 
 export type ThemeColors = Record<keyof typeof NavColorsDark, string>;

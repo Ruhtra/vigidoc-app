@@ -13,39 +13,14 @@ import Reanimated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@hooks/use-auth';
-
-/* ─────────────────────────────────────────────────────────── */
-/*  Design Tokens                                              */
-/* ─────────────────────────────────────────────────────────── */
-
-const palette = {
-  bg: '#0A0F1E',
-  bgCard: '#111827',
-  bgCard2: '#131D2F',
-  border: '#1F2D48',
-  borderAccent: 'rgba(251,191,36,0.3)',
-  teal400: '#2DD4BF',
-  teal500: '#0D9488',
-  tealDim: 'rgba(13,148,136,0.1)',
-  amber400: '#FBBF24',
-  amber500: '#F59E0B',
-  amberDim: 'rgba(251,191,36,0.08)',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  textMuted: '#6B7280',
-  white: '#FFFFFF',
-  dangerText: '#F87171',
-} as const;
-
-const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 } as const;
-
-/* ─────────────────────────────────────────────────────────── */
-/*  Pending Access Screen                                      */
-/* ─────────────────────────────────────────────────────────── */
+import { useThemeColors } from '@hooks/use-theme-colors';
+import { NavSpacing } from '@/constants/nav-theme';
+import { ThemeToggle } from '@components/ui/theme-toggle';
 
 export default function PendingAccessScreen() {
   const insets = useSafeAreaInsets();
   const { logout } = useAuth();
+  const NavColors = useThemeColors();
 
   // ── Pulsing glow animation ──
   const glowOpacity = useSharedValue(0.3);
@@ -55,21 +30,17 @@ export default function PendingAccessScreen() {
   const dotOpacity3 = useSharedValue(0.3);
 
   useEffect(() => {
-    // Softer breathing glow
     glowOpacity.value = withRepeat(
       withSequence(withTiming(0.7, { duration: 1800 }), withTiming(0.25, { duration: 1800 })),
       -1
     );
 
-    // Subtle icon pulse
     iconScale.value = withRepeat(
       withSequence(withTiming(1.04, { duration: 1600 }), withTiming(1, { duration: 1600 })),
       -1
     );
 
-    // Loading dots cascade
-    const delay = (ms: number) =>
-      new Promise<void>((res) => setTimeout(res, ms));
+    const delay = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
     const animate = async () => {
       while (true) {
         dotOpacity1.value = withTiming(1, { duration: 300 });
@@ -94,7 +65,7 @@ export default function PendingAccessScreen() {
   const dot3Style = useAnimatedStyle(() => ({ opacity: dotOpacity3.value }));
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View style={[styles.root, { backgroundColor: NavColors.bg0, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       {/* Background grid pattern */}
       <View style={styles.gridBg} pointerEvents="none">
         {Array.from({ length: 8 }).map((_, row) =>
@@ -103,45 +74,45 @@ export default function PendingAccessScreen() {
               key={`${row}-${col}`}
               style={[
                 styles.gridCell,
-                { opacity: 0.02 + (row + col) * 0.003, borderColor: palette.amber400 },
+                { opacity: 0.02, borderColor: NavColors.warning },
               ]}
             />
           ))
         )}
       </View>
 
-      {/* Corner accents */}
-      <View style={[styles.cornerTL, { borderColor: palette.amber400 }]} />
-      <View style={[styles.cornerBR, { borderColor: palette.amber400 }]} />
+      <View style={[styles.cornerTL, { borderColor: NavColors.warning + '60' }]} />
+      <View style={[styles.cornerBR, { borderColor: NavColors.warning + '60' }]} />
+
+      <View style={styles.topRightActions}>
+        <ThemeToggle />
+      </View>
 
       <Reanimated.View entering={FadeIn.duration(500)} style={styles.content}>
         {/* ── Icon ── */}
         <View style={styles.iconWrapper}>
-          {/* Breathing glow */}
           <Reanimated.View
-            style={[styles.iconGlow, { backgroundColor: palette.amber400 }, glowStyle]}
+            style={[styles.iconGlow, { backgroundColor: NavColors.warning }, glowStyle]}
           />
-
-          {/* Outer ring */}
-          <View style={styles.iconRingOuter}>
+          <View style={[styles.iconRingOuter, { backgroundColor: NavColors.warning + '15', borderColor: NavColors.warning + '30' }]}>
             <Reanimated.View style={[styles.iconInner, iconStyle]}>
-              <Ionicons name="time-outline" size={52} color={palette.amber400} />
+              <Ionicons name="time-outline" size={52} color={NavColors.warning} />
             </Reanimated.View>
           </View>
         </View>
 
         {/* ── Badge ── */}
-        <Reanimated.View entering={FadeInDown.duration(400).delay(100)} style={styles.badge}>
-          <View style={styles.badgeDot} />
-          <Text style={styles.badgeText}>AGUARDANDO APROVAÇÃO</Text>
+        <Reanimated.View entering={FadeInDown.duration(400).delay(100)} style={[styles.badge, { backgroundColor: NavColors.warning + '15', borderColor: NavColors.warning + '30' }]}>
+          <View style={[styles.badgeDot, { backgroundColor: NavColors.warning }]} />
+          <Text style={[styles.badgeText, { color: NavColors.warning }]}>AGUARDANDO APROVAÇÃO</Text>
         </Reanimated.View>
 
         {/* ── Title ── */}
         <Reanimated.View entering={FadeInDown.duration(400).delay(200)} style={styles.textBlock}>
-          <Text style={styles.title}>Acesso Pendente</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.title, { color: NavColors.textPrimary }]}>Acesso Pendente</Text>
+          <Text style={[styles.subtitle, { color: NavColors.textSecondary }]}>
             Sua conta foi criada com sucesso! Estamos aguardando a{' '}
-            <Text style={{ color: palette.teal400, fontWeight: '700' }}>
+            <Text style={{ color: NavColors.cyan, fontWeight: '700' }}>
               liberação do seu acesso
             </Text>{' '}
             por um administrador.
@@ -153,21 +124,21 @@ export default function PendingAccessScreen() {
           entering={FadeInDown.duration(400).delay(300)}
           style={styles.infoCards}
         >
-          <View style={styles.infoCard}>
-            <Ionicons name="notifications-outline" size={20} color={palette.teal400} />
+          <View style={[styles.infoCard, { backgroundColor: NavColors.bg1, borderColor: NavColors.border }]}>
+            <Ionicons name="notifications-outline" size={20} color={NavColors.cyan} />
             <View style={styles.infoCardText}>
-              <Text style={styles.infoCardTitle}>Notificação automática</Text>
-              <Text style={styles.infoCardSub}>
+              <Text style={[styles.infoCardTitle, { color: NavColors.textPrimary }]}>Notificação automática</Text>
+              <Text style={[styles.infoCardSub, { color: NavColors.textMuted }]}>
                 Você será notificado assim que seu acesso for liberado. O app abrirá automaticamente.
               </Text>
             </View>
           </View>
 
-          <View style={styles.infoCard}>
-            <Ionicons name="shield-checkmark-outline" size={20} color={palette.teal400} />
+          <View style={[styles.infoCard, { backgroundColor: NavColors.bg1, borderColor: NavColors.border }]}>
+            <Ionicons name="shield-checkmark-outline" size={20} color={NavColors.cyan} />
             <View style={styles.infoCardText}>
-              <Text style={styles.infoCardTitle}>Seus dados estão seguros</Text>
-              <Text style={styles.infoCardSub}>
+              <Text style={[styles.infoCardTitle, { color: NavColors.textPrimary }]}>Seus dados estão seguros</Text>
+              <Text style={[styles.infoCardSub, { color: NavColors.textMuted }]}>
                 A verificação manual garante que apenas profissionais autorizados acessem a plataforma.
               </Text>
             </View>
@@ -176,11 +147,11 @@ export default function PendingAccessScreen() {
 
         {/* ── Loading dots ── */}
         <Reanimated.View entering={FadeInDown.duration(400).delay(400)} style={styles.dotsRow}>
-          <Text style={styles.dotsLabel}>Verificando seu status</Text>
+          <Text style={[styles.dotsLabel, { color: NavColors.textMuted }]}>Verificando seu status</Text>
           <View style={styles.dots}>
-            <Reanimated.View style={[styles.dot, dot1Style]} />
-            <Reanimated.View style={[styles.dot, dot2Style]} />
-            <Reanimated.View style={[styles.dot, dot3Style]} />
+            <Reanimated.View style={[styles.dot, { backgroundColor: NavColors.warning }, dot1Style]} />
+            <Reanimated.View style={[styles.dot, { backgroundColor: NavColors.warning }, dot2Style]} />
+            <Reanimated.View style={[styles.dot, { backgroundColor: NavColors.warning }, dot3Style]} />
           </View>
         </Reanimated.View>
 
@@ -191,8 +162,8 @@ export default function PendingAccessScreen() {
             style={styles.logoutButton}
             testID="btn-logout-pending"
           >
-            <Ionicons name="log-out-outline" size={15} color={palette.textMuted} />
-            <Text style={styles.logoutText}>Sair e usar outra conta</Text>
+            <Ionicons name="log-out-outline" size={15} color={NavColors.textMuted} />
+            <Text style={[styles.logoutText, { color: NavColors.textMuted }]}>Sair e usar outra conta</Text>
           </Pressable>
         </Reanimated.View>
       </Reanimated.View>
@@ -200,177 +171,38 @@ export default function PendingAccessScreen() {
   );
 }
 
-/* ─────────────────────────────────────────────────────────── */
-/*  Styles                                                     */
-/* ─────────────────────────────────────────────────────────── */
-
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: palette.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  /* Grid background */
-  gridBg: {
-    ...StyleSheet.absoluteFillObject,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  gridCell: {
-    width: '20%',
-    height: 80,
-    borderWidth: 0.5,
-  },
-
-  /* Corner accents */
-  cornerTL: {
-    position: 'absolute',
-    top: 64,
-    left: 24,
-    width: 28,
-    height: 28,
-    borderTopWidth: 2,
-    borderLeftWidth: 2,
-    borderRadius: 4,
-  },
-  cornerBR: {
-    position: 'absolute',
-    bottom: 80,
-    right: 24,
-    width: 28,
-    height: 28,
-    borderBottomWidth: 2,
-    borderRightWidth: 2,
-    borderRadius: 4,
-  },
-
-  content: {
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.lg,
-    maxWidth: 360,
-    width: '100%',
-  },
-
-  /* Icon */
-  iconWrapper: {
-    width: 140,
-    height: 140,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  iconGlow: {
-    position: 'absolute',
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    opacity: 0.08,
-  },
-  iconRingOuter: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: palette.amberDim,
-    borderWidth: 1.5,
-    borderColor: palette.borderAccent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconInner: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  /* Badge */
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    backgroundColor: palette.amberDim,
-    borderWidth: 1,
-    borderColor: palette.borderAccent,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  badgeDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: palette.amber400,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: palette.amber400,
-    letterSpacing: 1.2,
-  },
-
-  /* Text block */
-  textBlock: { alignItems: 'center', gap: spacing.sm },
-  title: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: palette.textPrimary,
-    textAlign: 'center',
-    letterSpacing: 0.3,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: palette.textSecondary,
-    textAlign: 'center',
-    lineHeight: 23,
-  },
-
-  /* Info cards */
-  infoCards: { width: '100%', gap: spacing.sm },
-  infoCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    backgroundColor: palette.bgCard,
-    borderWidth: 1,
-    borderColor: palette.border,
-    borderRadius: 16,
-    padding: spacing.md,
-  },
+  root: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  gridBg: { ...StyleSheet.absoluteFillObject, flexDirection: 'row', flexWrap: 'wrap' },
+  gridCell: { width: '20%', height: 80, borderWidth: 0.5 },
+  cornerTL: { position: 'absolute', top: 64, left: 24, width: 28, height: 28, borderTopWidth: 2, borderLeftWidth: 2, borderRadius: 4 },
+  cornerBR: { position: 'absolute', bottom: 80, right: 24, width: 28, height: 28, borderBottomWidth: 2, borderRightWidth: 2, borderRadius: 4 },
+  content: { alignItems: 'center', paddingHorizontal: NavSpacing.lg, gap: NavSpacing.lg, maxWidth: 360, width: '100%' },
+  iconWrapper: { width: 140, height: 140, alignItems: 'center', justifyContent: 'center', marginBottom: NavSpacing.sm },
+  iconGlow: { position: 'absolute', width: 100, height: 100, borderRadius: 50, opacity: 0.08 },
+  iconRingOuter: { width: 110, height: 110, borderRadius: 55, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  iconInner: { alignItems: 'center', justifyContent: 'center' },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999 },
+  badgeDot: { width: 7, height: 7, borderRadius: 4 },
+  badgeText: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
+  textBlock: { alignItems: 'center', gap: NavSpacing.sm },
+  title: { fontSize: 26, fontWeight: '800', textAlign: 'center', letterSpacing: 0.3 },
+  subtitle: { fontSize: 15, textAlign: 'center', lineHeight: 23 },
+  infoCards: { width: '100%', gap: NavSpacing.sm },
+  infoCard: { flexDirection: 'row', alignItems: 'flex-start', gap: NavSpacing.sm, borderWidth: 1, borderRadius: 16, padding: NavSpacing.md },
   infoCardText: { flex: 1, gap: 4 },
-  infoCardTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: palette.textPrimary,
-  },
-  infoCardSub: {
-    fontSize: 13,
-    color: palette.textMuted,
-    lineHeight: 19,
-  },
-
-  /* Loading dots */
-  dotsRow: { alignItems: 'center', gap: spacing.xs },
-  dotsLabel: { fontSize: 12, color: palette.textMuted, letterSpacing: 0.3 },
+  infoCardTitle: { fontSize: 14, fontWeight: '700' },
+  infoCardSub: { fontSize: 13, lineHeight: 19 },
+  dotsRow: { alignItems: 'center', gap: NavSpacing.xs },
+  dotsLabel: { fontSize: 12, letterSpacing: 0.3 },
   dots: { flexDirection: 'row', gap: 6 },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: palette.amber400,
-  },
-
-  /* Logout */
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  logoutText: {
-    fontSize: 13,
-    color: palette.textMuted,
-    fontWeight: '500',
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  logoutButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: NavSpacing.sm, paddingHorizontal: NavSpacing.md },
+  logoutText: { fontSize: 13, fontWeight: '500' },
+  topRightActions: {
+    position: 'absolute',
+    top: 60, // Sits comfortably below system bar
+    right: 24,
+    zIndex: 99,
   },
 });

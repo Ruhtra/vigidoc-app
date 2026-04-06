@@ -1,35 +1,42 @@
-import { DarkTheme as NavigationDarkTheme, ThemeProvider } from '@react-navigation/native';
+import { 
+  DarkTheme as NavigationDarkTheme, 
+  DefaultTheme as NavigationLightTheme, 
+  ThemeProvider 
+} from '@react-navigation/native';
 import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import { preventAutoHideAsync, hideAsync } from 'expo-splash-screen';
-import React, { useEffect, useState } from 'react';
-import { useColorScheme, View, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useMemo } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
-import { NavColorsDark } from '@constants/nav-theme';
+import { getThemeColors } from '@constants/nav-theme';
 
-import { AuthService } from '@lib/services/auth.service';
 import { useAuthStore } from '@stores/auth.store';
 import { VersionService } from '@lib/services/version.service';
 import { UpdateRequiredScreen } from '@components/update-required';
+import { useThemeStore } from '@stores/theme.store';
 
 preventAutoHideAsync();
 
-// Custom Dark Theme based on VigiDoc DNA
-const VigiDocTheme = {
-  ...NavigationDarkTheme,
-  colors: {
-    ...NavigationDarkTheme.colors,
-    background: NavColorsDark.bg1,
-    primary: NavColorsDark.cyan,
-    card: NavColorsDark.bg1,
-    text: NavColorsDark.textPrimary,
-    border: NavColorsDark.border,
-    notification: NavColorsDark.violet,
-  },
-};
-
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const { theme: storeTheme } = useThemeStore();
+  const NavColors = useMemo(() => getThemeColors(storeTheme), [storeTheme]);
+  const isDark = storeTheme === 'dark';
+
+  // Custom Theme based on VigiDoc DNA
+  const VigiDocTheme = useMemo(() => ({
+    ...(isDark ? NavigationDarkTheme : NavigationLightTheme),
+    colors: {
+      ...(isDark ? NavigationDarkTheme.colors : NavigationLightTheme.colors),
+      background: NavColors.bg1,
+      primary: NavColors.cyan,
+      card: NavColors.bg1,
+      text: NavColors.textPrimary,
+      border: NavColors.border,
+      notification: NavColors.violet,
+    },
+  }), [isDark, NavColors]);
+
   const router = useRouter();
   const segments = useSegments();
   const navigationState = useRootNavigationState();
@@ -64,8 +71,8 @@ export default function RootLayout() {
   }, [hydrateSession]);
 
   useEffect(() => {
-    SystemUI.setBackgroundColorAsync(NavColorsDark.bg1);
-  }, []);
+    SystemUI.setBackgroundColorAsync(NavColors.bg1);
+  }, [NavColors]);
 
   // 2. Proteção de rotas: redireciona baseado no estado de autenticação
   useEffect(() => {
@@ -98,8 +105,8 @@ export default function RootLayout() {
   // Se estiver verificando a versão ou autenticando na abertura fria
   if (isVersionChecking || (isAuthLoading && !isAuthenticated)) {
     return (
-      <View style={{ flex: 1, backgroundColor: NavColorsDark.bg1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator color={NavColorsDark.cyan} size="large" />
+      <View style={{ flex: 1, backgroundColor: NavColors.bg1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator color={NavColors.cyan} size="large" />
       </View>
     );
   }
@@ -108,7 +115,7 @@ export default function RootLayout() {
   if (isUpdateRequired) {
     return (
       <ThemeProvider value={VigiDocTheme}>
-        <StatusBar style="light" translucent backgroundColor="transparent" />
+        <StatusBar style={isDark ? "light" : "dark"} translucent backgroundColor="transparent" />
         <UpdateRequiredScreen storeUrl={storeUrl} />
       </ThemeProvider>
     );
@@ -116,9 +123,9 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={VigiDocTheme}>
-      <StatusBar style="light" translucent backgroundColor="transparent" />
-      <View style={{ flex: 1, backgroundColor: NavColorsDark.bg1 }}>
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: NavColorsDark.bg1 } }}>
+      <StatusBar style={isDark ? "light" : "dark"} translucent backgroundColor="transparent" />
+      <View style={{ flex: 1, backgroundColor: NavColors.bg1 }}>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: NavColors.bg1 } }}>
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen 
