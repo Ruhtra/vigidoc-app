@@ -23,6 +23,7 @@ import { useRouter } from 'expo-router';
 import { useThemeColors } from '@hooks/use-theme-colors';
 import { UserDropdown } from '@components/navigation/user-dropdown';
 import { VitalPulse } from '@components/ui/vital-pulse';
+import { HealthStreak } from '@components/ui/health/health-streak';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -73,67 +74,6 @@ function StatCard({ label, value, unit, icon, color, delay }: StatCardProps) {
       <View style={card.valueRow}>
         <Text style={[card.value, { color }]}>{value}</Text>
         <Text style={card.unit} numberOfLines={1}>{unit}</Text>
-      </View>
-    </Reanimated.View>
-  );
-}
-
-/* ─────────────────────────────────────────── */
-/*  Health Streak (Ofensiva)                    */
-/* ─────────────────────────────────────────── */
-
-function HealthStreak() {
-  const NavColors = useThemeColors();
-  const streak = useStreakStyles(NavColors);
-  
-  const days = [
-    { label: 'Seg', count: 4, status: 'done' },
-    { label: 'Ter', count: 5, status: 'done' },
-    { label: 'Qua', count: 4, status: 'done' },
-    { label: 'Qui', count: 6, status: 'done' },
-    { label: 'Sex', count: 4, status: 'done' },
-    { label: 'Sáb', count: 0, status: 'pending' },
-    { label: 'Dom', count: 0, status: 'empty' },
-  ] as const;
-
-  return (
-    <Reanimated.View 
-      entering={FadeInDown.duration(400).delay(400)}
-      style={streak.root}
-    >
-      <View style={streak.header}>
-        <View style={streak.fireIcon}>
-          <Ionicons name="flame" size={20} color={NavColors.warning} />
-        </View>
-        <View>
-          <Text style={streak.title}>5 dias de ofensiva</Text>
-          <Text style={streak.subtitle}>Mínimo de 4 medições/dia</Text>
-        </View>
-      </View>
-
-      <View style={streak.timeline}>
-        {days.map((day, idx) => (
-          <View key={day.label} style={streak.dayWrapper}>
-            <View style={streak.dayNode}>
-              {idx > 0 && <View style={[streak.line, day.status === 'done' && streak.lineDone]} />}
-              <View style={[
-                streak.circle,
-                day.status === 'done' && streak.circleDone,
-                day.status === 'pending' && streak.circlePending
-              ]}>
-                {day.status === 'done' ? (
-                  <Ionicons name="checkmark" size={12} color="white" />
-                ) : day.status === 'pending' ? (
-                  <Text style={streak.pendingText}>?</Text>
-                ) : (
-                  <Text style={streak.emptyText}>-</Text>
-                )}
-              </View>
-            </View>
-            <Text style={[streak.dayLabel, day.status === 'pending' && streak.dayLabelActive]}>{day.label}</Text>
-            {day.count > 0 && <Text style={streak.dayCount}>{day.count} med.</Text>}
-          </View>
-        ))}
       </View>
     </Reanimated.View>
   );
@@ -501,111 +441,4 @@ const useCardStyles = (NavColors: ThemeColors) => React.useMemo(() => StyleSheet
   },
 }), [NavColors]);
 
-const useStreakStyles = (NavColors: ThemeColors) => React.useMemo(() => StyleSheet.create({
-  root: {
-    backgroundColor: `${NavColors.warning}10`,
-    borderRadius: NavRadius.lg,
-    borderWidth: 1,
-    borderColor: `${NavColors.warning}30`,
-    padding: NavSpacing.lg,
-    marginTop: NavSpacing.md,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: NavSpacing.md,
-    marginBottom: NavSpacing.lg,
-  },
-  fireIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: NavRadius.sm,
-    backgroundColor: `${NavColors.warning}20`,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: NavColors.warning,
-  },
-  subtitle: {
-    fontSize: 12,
-    color: NavColors.warning,
-    opacity: 0.7,
-  },
-  timeline: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: NavColors.bg2,
-    borderRadius: NavRadius.md,
-    padding: NavSpacing.sm,
-    paddingVertical: NavSpacing.md,
-  },
-  dayWrapper: {
-    alignItems: 'center',
-    gap: 6,
-    flex: 1,
-  },
-  dayNode: {
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  line: {
-    position: 'absolute',
-    left: -18,
-    right: 12,
-    height: 2,
-    backgroundColor: NavColors.bg3,
-    top: 11,
-    zIndex: 0,
-  },
-  lineDone: {
-    backgroundColor: NavColors.warning,
-  },
-  circle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: NavColors.bg3,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-  circleDone: {
-    backgroundColor: NavColors.warning,
-  },
-  circlePending: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: NavColors.warning,
-    borderStyle: 'dashed',
-  },
-  pendingText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: NavColors.warning,
-  },
-  emptyText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: NavColors.textMuted,
-  },
-  dayLabel: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: NavColors.textMuted,
-  },
-  dayLabelActive: {
-    color: NavColors.warning,
-  },
-  dayCount: {
-    fontSize: 8,
-    fontWeight: '700',
-    color: NavColors.warning,
-    marginTop: -2,
-  }
-}), [NavColors]);
+

@@ -17,6 +17,7 @@ import { useAuthStore } from '@stores/auth.store';
 import { useMeasurementStore } from '@stores/measurement.store';
 import { NavSpacing, NavRadius } from '@constants/nav-theme';
 import { useThemeColors } from '@hooks/use-theme-colors';
+import { HealthStreak } from '@components/ui/health/health-streak';
 
 export default function HomeScreen() {
   const NavColors = useThemeColors();
@@ -149,45 +150,8 @@ export default function HomeScreen() {
         {/* Content Rest */}
         <View style={styles.contentPadding}>
           
-          {/* Offensive Block */}
-          <Animated.View entering={FadeInUp.duration(600).delay(200)}>
-            <LinearGradient
-              colors={['#FFF8F0', '#FFFDF9']}
-              style={styles.offensiveCard}
-            >
-              <View style={styles.offensiveTop}>
-                <View style={[styles.iconCircle, { backgroundColor: '#FF8800' }]}>
-                  <Ionicons name="flame" size={24} color="#FFF" />
-                </View>
-                <View>
-                  <Text style={styles.offensiveTitle}>5 dias de ofensiva</Text>
-                  <Text style={styles.offensiveSub}>Mínimo de 4 medições por dia</Text>
-                </View>
-              </View>
-
-              <View style={styles.weekRow}>
-                {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((day, idx) => (
-                  <View key={day} style={styles.dayCol}>
-                    {idx < 5 ? (
-                      <View style={[styles.dayCircle, { backgroundColor: '#FF8800' }]}>
-                        <Ionicons name="checkmark" size={14} color="#FFF" />
-                      </View>
-                    ) : idx === 5 ? (
-                      <View style={[styles.dayCircleDashed, { borderColor: '#FF007B' }]}>
-                        <Text style={{ color: '#FF007B', fontWeight: 'bold' }}>?</Text>
-                      </View>
-                    ) : (
-                      <View style={[styles.dayCircleSolid, { backgroundColor: '#E5E7EB' }]}>
-                        <Text style={{ color: '#9CA3AF', fontWeight: 'bold' }}>-</Text>
-                      </View>
-                    )}
-                    <Text style={[styles.dayText, idx === 5 && { color: '#FF007B' }]}>{day}</Text>
-                    {idx < 5 && <Text style={styles.dayMed}>4 med.</Text>}
-                  </View>
-                ))}
-              </View>
-            </LinearGradient>
-          </Animated.View>
+          {/* Offensive Block - Unificado */}
+          <HealthStreak />
 
           {/* List header */}
           <View style={styles.listHeader}>
@@ -392,80 +356,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: NavSpacing.xl,
     paddingTop: NavSpacing.xl,
   },
-  offensiveCard: {
-    borderRadius: NavRadius.lg,
-    padding: NavSpacing.lg,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  offensiveTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 20,
-  },
-  iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#FF8800',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-  },
-  offensiveTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#D97706',
-  },
-  offensiveSub: {
-    fontSize: 13,
-    color: '#F59E0B',
-    fontWeight: '500',
-  },
-  weekRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  dayCol: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  dayCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dayCircleDashed: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dayCircleSolid: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dayText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#4B5563',
-  },
-  dayMed: {
-    fontSize: 9,
-    color: '#F59E0B',
-    fontWeight: '700',
-  },
+
   listHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
