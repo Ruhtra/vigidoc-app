@@ -41,6 +41,10 @@ export default function TabsLayout() {
           name="perfil"
           options={{ title: 'Perfil', href: null }}
         />
+        <Tabs.Screen
+          name="dev"
+          options={{ title: 'Laboratório IoT', href: null }}
+        />
       </Tabs>
 
       {/* Side drawer rendered above all tabs */}

@@ -67,6 +67,16 @@ export const APP_ROUTES: AppRouteConfig[] = [
     path: '/(tabs)/perfil',
     colorKey: 'textSecondary',
     showInTabBar: false,
-    showInDrawer: true, // É acessado no bottomProfile do Drawer
+    showInDrawer: true, 
+  },
+  {
+    name: 'dev',
+    label: 'Laboratório IoT',
+    icon: 'flask-outline',
+    iconActive: 'flask',
+    path: '/(tabs)/dev',
+    colorKey: 'cyan',
+    showInTabBar: false,
+    showInDrawer: true,
   },
 ];

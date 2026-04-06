@@ -1,683 +1,543 @@
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import Reanimated, {
-  FadeInDown,
-  FadeInUp,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { NavRadius, NavSpacing, TAB_BAR_HEIGHT } from '@constants/nav-theme';
-import { useAuthStore } from '@stores/auth.store';
-import { useAuth } from '@hooks/use-auth';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { 
+  FadeInDown, 
+  FadeInUp, 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withRepeat, 
+  withSequence, 
+  withTiming 
+} from 'react-native-reanimated';
+import { useAuthStore } from '@stores/auth.store';
+import { useMeasurementStore } from '@stores/measurement.store';
+import { NavSpacing, NavRadius } from '@constants/nav-theme';
 import { useThemeColors } from '@hooks/use-theme-colors';
-import { useThemeStore } from '@stores/theme.store';
-import { UserDropdown } from '@components/navigation/user-dropdown';
-
-type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
-
-/* ─────────────────────────────────────────── */
-/*  Health pulse animation                     */
-/* ─────────────────────────────────────────── */
-
-function VitalPulse() {
-  const NavColors = useThemeColors();
-  const vitals = useVitalsStyles(NavColors);
-  const lineOffset = useSharedValue(0);
-
-  useEffect(() => {
-    lineOffset.value = withRepeat(
-      withTiming(-200, { duration: 2000 }),
-      -1
-    );
-  }, [lineOffset]);
-
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: lineOffset.value }],
-  }));
-
-  return (
-    <View style={vitals.pulseWrapper}>
-      <Reanimated.View style={[vitals.pulseTrack, animStyle]}>
-        <View style={vitals.ecgLine}>
-          <View style={vitals.ecgFlat} />
-          <View style={vitals.ecgSpike} />
-          <View style={vitals.ecgFlat} />
-        </View>
-      </Reanimated.View>
-      <View style={vitals.pulseGlow} />
-    </View>
-  );
-}
-
-/* ─────────────────────────────────────────── */
-/*  Quick stat card                            */
-/* ─────────────────────────────────────────── */
-
-type StatCardProps = {
-  label: string;
-  value: string;
-  unit: string;
-  icon: IoniconName;
-  color: string;
-  delay: number;
-};
-
-function StatCard({ label, value, unit, icon, color, delay }: StatCardProps) {
-  const NavColors = useThemeColors();
-  const card = useCardStyles(NavColors);
-  const dot = useSharedValue(1);
-
-  useEffect(() => {
-    dot.value = withRepeat(
-      withSequence(
-        withTiming(0.3, { duration: 900 }),
-        withTiming(1, { duration: 900 })
-      ),
-      -1
-    );
-  }, [dot]);
-
-  const dotStyle = useAnimatedStyle(() => ({ opacity: dot.value }));
-
-  return (
-    <Reanimated.View
-      entering={FadeInDown.duration(400).delay(delay)}
-      style={[card.root, { borderColor: `${color}22` }]}
-    >
-      <View style={[card.glow, { backgroundColor: color }]} />
-
-      <View style={[card.iconBox, { backgroundColor: `${color}18` }]}>
-        <Ionicons name={icon} size={18} color={color} />
-      </View>
-
-      <View style={card.valueRow}>
-        <Text style={[card.value, { color }]}>{value}</Text>
-        <Text style={card.unit}>{unit}</Text>
-      </View>
-
-      <View style={card.labelRow}>
-        <Reanimated.View style={[card.liveDot, { backgroundColor: color }, dotStyle]} />
-        <Text style={card.label}>{label}</Text>
-      </View>
-    </Reanimated.View>
-  );
-}
-
-/* ─────────────────────────────────────────── */
-/*  Quick action button                        */
-/* ─────────────────────────────────────────── */
-
-type QuickActionProps = {
-  label: string;
-  icon: IoniconName;
-  color: string;
-  delay: number;
-};
-
-function QuickAction({ label, icon, color, delay }: QuickActionProps) {
-  const NavColors = useThemeColors();
-  const action = useActionStyles(NavColors);
-  return (
-    <Reanimated.View
-      entering={FadeInDown.duration(400).delay(delay)}
-      style={[action.root, { borderColor: `${color}20` }]}
-    >
-      <View style={[action.iconBox, { backgroundColor: `${color}14` }]}>
-        <Ionicons name={icon} size={22} color={color} />
-      </View>
-      <Text style={action.label}>{label}</Text>
-      <View style={[action.comingSoon, { backgroundColor: `${color}14`, borderColor: `${color}30` }]}>
-        <Text style={[action.comingSoonText, { color }]}>Em breve</Text>
-      </View>
-    </Reanimated.View>
-  );
-}
-
-/* ─────────────────────────────────────────── */
-/*  Main screen                                */
-/* ─────────────────────────────────────────── */
 
 export default function HomeScreen() {
   const NavColors = useThemeColors();
-  const themeMode = useThemeStore((state) => state.theme);
-  const { setTheme } = useThemeStore();
-  const styles = useStyles(NavColors);
-
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { session } = useAuthStore();
-  const { logout } = useAuth();
-  
-  const [dropdownOpen, setDropdownOpen] = React.useState(false);
+  const measurementState = useMeasurementStore();
 
-  const firstName = session?.user?.name?.split(' ')[0] ?? 'Usuário';
+  const [greeting, setGreeting] = useState('');
+  const [currentTime, setCurrentTime] = useState('');
+  const [timeRemaining, setTimeRemaining] = useState<string | null>(null);
+  const [headerTheme, setHeaderTheme] = useState<{ colors: [string, string], icon: any }>({
+    colors: ['#FF7B00', '#FF007B'],
+    icon: 'sunny'
+  });
 
-  const now = new Date();
-  const hour = now.getHours();
-  const greeting =
-    hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+  useEffect(() => {
+    const hour = new Date().getHours();
+    
+    // Atualiza Saudação e Tema baseado na hora do dia
+    if (hour >= 6 && hour < 12) {
+      setGreeting('Bom dia');
+      setHeaderTheme({ colors: ['#00D4FF', '#007BF5'], icon: 'partly-sunny' });
+    } else if (hour >= 12 && hour < 18) {
+      setGreeting('Boa tarde');
+      setHeaderTheme({ colors: ['#FF7B00', '#FF007B'], icon: 'sunny' });
+    } else if (hour >= 18 && hour < 24) {
+      setGreeting('Boa noite');
+      setHeaderTheme({ colors: ['#7B2FFF', '#3A0088'], icon: 'moon' });
+    } else {
+      setGreeting('Boa madrugada');
+      setHeaderTheme({ colors: ['#0C1526', '#02040E'], icon: 'moon-outline' });
+    }
 
-  const greeting2 = hour < 12 ? '🌤' : hour < 18 ? '☀️' : '🌙';
+    const interval = setInterval(() => {
+      const now = new Date();
+      setCurrentTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`);
+
+      // Handle Measurement timer state
+      if (measurementState.status === 'measuring' && measurementState.startTime) {
+        const elapsed = now.getTime() - measurementState.startTime;
+        const remaining = 10 * 60 * 1000 - elapsed;
+        if (remaining <= 0) {
+          measurementState.finalizeMeasurement();
+        } else {
+          const mins = Math.floor(remaining / 60000);
+          const secs = Math.floor((remaining % 60000) / 1000);
+          setTimeRemaining(`${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`);
+        }
+      } else if (measurementState.status === 'waiting' && measurementState.waitCooldownEnd) {
+        const remaining = measurementState.waitCooldownEnd - now.getTime();
+        if (remaining <= 0) {
+          measurementState.resetWait();
+          setTimeRemaining(null);
+        } else {
+          const mins = Math.floor(remaining / 60000);
+          const secs = Math.floor((remaining % 60000) / 1000);
+          setTimeRemaining(`${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`);
+        }
+      } else {
+        setTimeRemaining(null);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [measurementState]);
+
+  const handleMeasurementPress = () => {
+    if (measurementState.status !== 'waiting') {
+      router.push('/new-measurement');
+    }
+  };
+
+  const userName = session?.user?.name?.split(' ')[0] || 'Maria';
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingBottom: TAB_BAR_HEIGHT + 32 },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ── Header ── */}
-        <Reanimated.View entering={FadeInDown.duration(450).delay(0)} style={[styles.header, { zIndex: 10 }]}>
-          <View>
-            <Text style={styles.greetingSmall}>{greeting} {greeting2}</Text>
-            <Text style={styles.greetingName}>{firstName}</Text>
-          </View>
-          
-          <View style={{ position: 'relative' }}>
-            <Pressable 
-              style={styles.avatarSmall}
-              onPress={() => setDropdownOpen(!dropdownOpen)}
-            >
-              <Text style={styles.avatarSmallText}>
-                {firstName.charAt(0).toUpperCase()}
-              </Text>
-              <View style={styles.avatarOnline} />
-            </Pressable>
-
-            <UserDropdown
-              visible={dropdownOpen}
-              onClose={() => setDropdownOpen(false)}
-              colors={NavColors}
-              position={{ top: insets.top + 42, right: 20 }}
-            />
-          </View>
-        </Reanimated.View>
-
-        {/* ── Health status card ── */}
-        <Reanimated.View
-          entering={FadeInDown.duration(450).delay(80)}
-          style={styles.statusCard}
-        >
-          {/* Decorative top bar */}
-          <View style={styles.statusCardBar} />
-
-          <View style={styles.statusCardContent}>
-            <View>
-              <Text style={styles.statusLabel}>ESTADO GERAL</Text>
-              <Text style={styles.statusValue}>Monitorando</Text>
-              <Text style={styles.statusSub}>Seus dados estão sendo coletados</Text>
-            </View>
-            <VitalPulse />
-          </View>
-
-          {/* Status badges */}
-          <View style={styles.statusBadges}>
-            {[
-              { label: 'Batimentos', color: NavColors.danger },
-              { label: 'Pressão',    color: NavColors.violet },
-              { label: 'SpO₂',      color: NavColors.green },
-            ].map((b) => (
-              <View
-                key={b.label}
-                style={[styles.statusBadge, { borderColor: `${b.color}40`, backgroundColor: `${b.color}10` }]}
-              >
-                <View style={[styles.statusBadgeDot, { backgroundColor: b.color }]} />
-                <Text style={[styles.statusBadgeText, { color: b.color }]}>{b.label}</Text>
-              </View>
-            ))}
-          </View>
-        </Reanimated.View>
-
-        {/* ── Vital stats grid ── */}
-        <Reanimated.View 
-          entering={FadeInDown.duration(400).delay(160)}
-          style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
-        >
-          <Text style={styles.sectionTitle}>Sinais Vitais</Text>
-          <Pressable 
-            onPress={() => router.push('/new-measurement')}
-            style={({ pressed }) => ({
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: `${NavColors.cyan}15`,
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: NavRadius.sm,
-              borderWidth: 1,
-              borderColor: `${NavColors.cyan}30`,
-              opacity: pressed ? 0.7 : 1,
-              transform: [{ scale: pressed ? 0.96 : 1 }]
-            })}
+    <View style={[styles.root, { backgroundColor: NavColors.bg0 }]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        
+        {/* Header Gradient Container */}
+        <Animated.View entering={FadeInDown.duration(600)}>
+          <LinearGradient
+            colors={headerTheme.colors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.headerGradient, { paddingTop: insets.top + 20 }]}
           >
-            <Ionicons name="add" size={16} color={NavColors.cyan} style={{ marginRight: 4 }} />
-            <Text style={{ fontSize: 13, fontWeight: '700', color: NavColors.cyan }}>Registrar</Text>
-          </Pressable>
-        </Reanimated.View>
+            <View style={styles.headerTop}>
+              <View style={styles.greetingRow}>
+                <Ionicons name={headerTheme.icon as any} size={28} color="#FFF" />
+                <Text style={styles.greetingText}>{greeting}, {userName}!</Text>
+              </View>
+              <View style={styles.notificationPill}>
+                <Ionicons name="notifications-outline" size={16} color="#FFF" />
+                <Text style={styles.notificationText}>18:00</Text>
+              </View>
+            </View>
 
-        <View style={styles.statsGrid}>
-          <StatCard label="Freq. Cardíaca" value="--"  unit="bpm" icon="heart"         color={NavColors.danger} delay={200} />
-          <StatCard label="Pressão"        value="--"  unit="mmHg" icon="pulse-outline" color={NavColors.violet} delay={240} />
-          <StatCard label="SpO₂"           value="--"  unit="%"    icon="water"          color={NavColors.cyan}   delay={280} />
-          <StatCard label="Temperatura"    value="--"  unit="°C"   icon="thermometer"    color={NavColors.warning} delay={320} />
-        </View>
+            <Text style={styles.subGreetingText}>{currentTime} - 2 medições hoje</Text>
 
-        {/* ── Quick actions ── */}
-        <Reanimated.View entering={FadeInDown.duration(400).delay(360)}>
-          <Text style={styles.sectionTitle}>Ações Rápidas</Text>
-        </Reanimated.View>
+            <TouchableOpacity 
+              style={[
+                styles.mainButton,
+                measurementState.status === 'waiting' && styles.mainButtonDisabled
+              ]}
+              onPress={handleMeasurementPress}
+              disabled={measurementState.status === 'waiting'}
+              activeOpacity={0.9}
+            >
+              {measurementState.status === 'waiting' ? (
+                <View style={styles.mainButtonContent}>
+                  <Ionicons name="time-outline" size={24} color="#FF007B" />
+                  <Text style={styles.mainButtonTextDisabled}>Nova medição em {timeRemaining}</Text>
+                </View>
+              ) : measurementState.status === 'measuring' ? (
+                <View style={styles.mainButtonContent}>
+                  <Ionicons name="play" size={24} color="#FF007B" />
+                  <Text style={styles.mainButtonTextActive}>Continuar ({timeRemaining})</Text>
+                </View>
+              ) : (
+                <View style={styles.mainButtonContent}>
+                  <Ionicons name="play" size={24} color="#111" />
+                  <Text style={styles.mainButtonText}>Iniciar Nova Medição</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </LinearGradient>
+        </Animated.View>
 
-        <View style={styles.actionsGrid}>
-          <QuickAction label="Prescrições"    icon="document-text-outline"  color={NavColors.cyan}    delay={380} />
-          <QuickAction label="Consultas"      icon="calendar-outline"        color={NavColors.violet}  delay={400} />
-          <QuickAction label="Exames"         icon="flask-outline"           color={NavColors.warning} delay={420} />
-          <QuickAction label="Emergência"     icon="alert-circle-outline"   color={NavColors.danger}  delay={440} />
-        </View>
+        {/* Content Rest */}
+        <View style={styles.contentPadding}>
+          
+          {/* Offensive Block */}
+          <Animated.View entering={FadeInUp.duration(600).delay(200)}>
+            <LinearGradient
+              colors={['#FFF8F0', '#FFFDF9']}
+              style={styles.offensiveCard}
+            >
+              <View style={styles.offensiveTop}>
+                <View style={[styles.iconCircle, { backgroundColor: '#FF8800' }]}>
+                  <Ionicons name="flame" size={24} color="#FFF" />
+                </View>
+                <View>
+                  <Text style={styles.offensiveTitle}>5 dias de ofensiva</Text>
+                  <Text style={styles.offensiveSub}>Mínimo de 4 medições por dia</Text>
+                </View>
+              </View>
 
-        {/* ── Coming soon banner ── */}
-        <Reanimated.View
-          entering={FadeInUp.duration(400).delay(480)}
-          style={styles.comingSoonBanner}
-        >
-          <Ionicons name="construct-outline" size={20} color={NavColors.cyan} />
-          <View style={styles.comingSoonBannerText}>
-            <Text style={styles.comingSoonBannerTitle}>Dashboard em desenvolvimento</Text>
-            <Text style={styles.comingSoonBannerSub}>
-              O painel completo de saúde estará disponível em breve com dados em tempo real.
-            </Text>
+              <View style={styles.weekRow}>
+                {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((day, idx) => (
+                  <View key={day} style={styles.dayCol}>
+                    {idx < 5 ? (
+                      <View style={[styles.dayCircle, { backgroundColor: '#FF8800' }]}>
+                        <Ionicons name="checkmark" size={14} color="#FFF" />
+                      </View>
+                    ) : idx === 5 ? (
+                      <View style={[styles.dayCircleDashed, { borderColor: '#FF007B' }]}>
+                        <Text style={{ color: '#FF007B', fontWeight: 'bold' }}>?</Text>
+                      </View>
+                    ) : (
+                      <View style={[styles.dayCircleSolid, { backgroundColor: '#E5E7EB' }]}>
+                        <Text style={{ color: '#9CA3AF', fontWeight: 'bold' }}>-</Text>
+                      </View>
+                    )}
+                    <Text style={[styles.dayText, idx === 5 && { color: '#FF007B' }]}>{day}</Text>
+                    {idx < 5 && <Text style={styles.dayMed}>4 med.</Text>}
+                  </View>
+                ))}
+              </View>
+            </LinearGradient>
+          </Animated.View>
+
+          {/* List header */}
+          <View style={styles.listHeader}>
+            <Text style={[styles.listTitle, { color: NavColors.textPrimary }]}>Últimas Aferições</Text>
+            <Text style={[styles.listSubtitle, { color: NavColors.textMuted }]}>Hoje</Text>
           </View>
-        </Reanimated.View>
+
+          {/* Card Mock 1 (Normal / Estável) */}
+          <Animated.View entering={FadeInUp.duration(600).delay(300)}>
+            <View style={[styles.historyCardV2, { backgroundColor: NavColors.bg1, borderColor: NavColors.borderSoft }]}>
+              {/* Header do Card com Ícone Pulsante */}
+              <View style={styles.historyCardTopRow}>
+                <PulseIndicator color="#10B981" icon="pulse" />
+                <View style={styles.historyTextContainer}>
+                  <Text style={[styles.historyTitleText, { color: NavColors.textPrimary }]}>Aferição Estável</Text>
+                  <Text style={[styles.historyTime, { color: NavColors.textMuted }]}>08:12</Text>
+                </View>
+                <View style={[styles.badgeTopRight, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
+                  <Text style={[styles.badgeTopRightText, { color: '#10B981' }]}>6/6</Text>
+                </View>
+              </View>
+              
+              {/* Lista compacta inferior usando ScrollView */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.metricsScroll}>
+                 <MetricBadge icon="speedometer" value="120/80" severity="normal" />
+                 <MetricBadge icon="heart" value="72" severity="normal" />
+                 <MetricBadge icon="thermometer" value="36.5" severity="normal" />
+                 <MetricBadge icon="water" value="98%" severity="normal" />
+                 <MetricBadge icon="barbell" value="70.5" severity="normal" />
+                 <MetricBadge icon="alert-circle" value="2" severity="normal" />
+              </ScrollView>
+            </View>
+          </Animated.View>
+
+          {/* Card Mock 2 (Alert / Cuidado) */}
+          <Animated.View entering={FadeInUp.duration(600).delay(400)}>
+             <View style={[styles.historyCardV2, { backgroundColor: NavColors.bg1, borderColor: NavColors.borderSoft }]}>
+              {/* Header do Card com Ícone Pulsante */}
+              <View style={styles.historyCardTopRow}>
+                <PulseIndicator color="#F59E0B" icon="warning" />
+                <View style={styles.historyTextContainer}>
+                  <Text style={[styles.historyTitleText, { color: NavColors.textPrimary }]}>Atenção Necessária</Text>
+                  <Text style={[styles.historyTime, { color: NavColors.textMuted }]}>12:05</Text>
+                </View>
+                <View style={[styles.badgeTopRight, { backgroundColor: 'rgba(245, 158, 11, 0.1)' }]}>
+                  <Text style={[styles.badgeTopRightText, { color: '#F59E0B' }]}>4/6</Text>
+                </View>
+              </View>
+              
+              {/* Lista compacta inferior usando ScrollView */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.metricsScroll}>
+                 <MetricBadge icon="speedometer" value="118/78" severity="normal" />
+                 <MetricBadge icon="heart" value="68" severity="normal" />
+                 <MetricBadge icon="thermometer" value="37.5" severity="alert" />
+                 <MetricBadge icon="water" value="99%" severity="normal" />
+                 <MetricBadge icon="barbell" value="-" severity="unfilled" />
+                 <MetricBadge icon="alert-circle" value="-" severity="unfilled" />
+              </ScrollView>
+            </View>
+          </Animated.View>
+        </View>
+
       </ScrollView>
     </View>
   );
 }
 
-/* ─────────────────────────────────────────── */
-/*  Dynamic Styles Hook                        */
-/* ─────────────────────────────────────────── */
+// Indicator Animado Futurista
+function PulseIndicator({ color, icon }: { color: string; icon: any }) {
+  const pulse = useSharedValue(1);
+  
+  useEffect(() => {
+     pulse.value = withRepeat(
+       withSequence(
+         withTiming(1.3, { duration: 1000 }),
+         withTiming(1, { duration: 1000 })
+       ),
+       -1,
+       true
+     );
+  }, []);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+     transform: [{ scale: pulse.value }],
+     shadowColor: color,
+     shadowOpacity: 0.6,
+     shadowRadius: 10,
+     width: 44,
+     height: 44,
+     borderRadius: 22,
+     backgroundColor: color + '20', // Opacidade de 20%
+     justifyContent: 'center',
+     alignItems: 'center',
+  }));
 
-import type { ThemeColors } from '@constants/nav-theme';
+  return (
+    <Animated.View style={animatedStyle}>
+      <Ionicons name={icon} size={22} color={color} />
+    </Animated.View>
+  );
+}
 
-const useStyles = (NavColors: ThemeColors) => React.useMemo(() => StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: NavColors.bg0,
+// Sub-componente para renderizar cada métrica com ícone e cor de severidade
+function MetricBadge({ icon, value, severity }: { icon: any, value: string, severity: 'normal'|'alert'|'critical'|'unfilled' }) {
+  const colorMap = {
+    normal: '#10B981', // Verde
+    alert: '#F59E0B',  // Amarelo
+    critical: '#EF4444', // Vermelho
+    unfilled: '#4B5563', // Cinza
+  };
+  const color = colorMap[severity];
+
+  return (
+    <View style={styles.metricBadge}>
+      <Ionicons name={icon} size={14} color={color} />
+      <Text style={[styles.metricValue, { color: severity === 'unfilled' ? '#6B7280' : '#E5E7EB' }]}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  headerGradient: {
+    paddingHorizontal: NavSpacing.xl,
+    paddingBottom: NavSpacing.xl,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
-
-  scroll: {
-    paddingHorizontal: NavSpacing.lg,
-    gap: NavSpacing.lg,
-  },
-
-  header: {
+  headerTop: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: NavSpacing.lg,
-  },
-
-  greetingSmall: {
-    fontSize: 13,
-    color: NavColors.textSecondary,
-    fontWeight: '500',
-    letterSpacing: 0.3,
-  },
-
-  greetingName: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: NavColors.textPrimary,
-    letterSpacing: 0.2,
-  },
-
-  avatarSmall: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: NavColors.bg4,
-    borderWidth: 1.5,
-    borderColor: NavColors.borderBright,
     alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
+    marginBottom: 8,
   },
-
-  avatarSmallText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: NavColors.cyan,
-  },
-
-  avatarOnline: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: NavColors.green,
-    borderWidth: 2,
-    borderColor: NavColors.bg0,
-  },
-
-  themeToggleText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: NavColors.textMuted,
-  },
-
-  themeToggleTextActive: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: NavColors.bg0,
-  },
-
-  dropdownDivider: {
-    height: 1,
-    backgroundColor: NavColors.border,
-  },
-
-  dropdownItem: {
+  greetingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: NavSpacing.md,
-    paddingHorizontal: NavSpacing.lg,
-    gap: NavSpacing.md,
+    gap: 8,
   },
-
-
-
-  // ── Status card ──
-  statusCard: {
-    backgroundColor: NavColors.bg2,
-    borderRadius: NavRadius.lg,
-    borderWidth: 1,
-    borderColor: NavColors.border,
-    overflow: 'hidden',
-    shadowColor: NavColors.cyan,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 8,
+  greetingText: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#FFF',
   },
-
-  statusCardBar: {
-    height: 3,
-    backgroundColor: NavColors.cyan,
-    opacity: 0.7,
-  },
-
-  statusCardContent: {
+  notificationPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: NavSpacing.lg,
-  },
-
-  statusLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: NavColors.cyan,
-    letterSpacing: 2,
-    marginBottom: 4,
-  },
-
-  statusValue: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: NavColors.textPrimary,
-    letterSpacing: 0.3,
-  },
-
-  statusSub: {
-    fontSize: 12,
-    color: NavColors.textMuted,
-    marginTop: 2,
-  },
-
-  statusBadges: {
-    flexDirection: 'row',
-    gap: NavSpacing.sm,
-    padding: NavSpacing.lg,
-    paddingTop: 0,
-  },
-
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: NavRadius.full,
-    borderWidth: 1,
-  },
-
-  statusBadgeDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-  },
-
-  statusBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-
-  // ── Section title ──
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: NavColors.textSecondary,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    marginBottom: -NavSpacing.sm,
-  },
-
-  // ── Stats grid ──
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: NavSpacing.md,
-  },
-
-  // ── Actions grid ──
-  actionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: NavSpacing.md,
-  },
-
-  // ── Coming soon banner ──
-  comingSoonBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: NavSpacing.md,
-    backgroundColor: NavColors.cyanSoft,
-    borderRadius: NavRadius.md,
-    borderWidth: 1,
-    borderColor: NavColors.cyanDim,
-    padding: NavSpacing.lg,
-    marginBottom: NavSpacing.sm,
-  },
-
-  comingSoonBannerText: {
-    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
     gap: 4,
   },
-
-  comingSoonBannerTitle: {
-    fontSize: 13,
+  notificationText: {
+    color: '#FFF',
+    fontSize: 14,
     fontWeight: '700',
-    color: NavColors.cyan,
   },
-
-  comingSoonBannerSub: {
-    fontSize: 12,
-    color: NavColors.textSecondary,
-    lineHeight: 18,
+  subGreetingText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    marginBottom: 24,
+    fontWeight: '500',
   },
-}), [NavColors]);
-
-/* ─────────────────────────────────────────── */
-/*  Pulse animation styles                     */
-/* ─────────────────────────────────────────── */
-
-const useVitalsStyles = (NavColors: ThemeColors) => React.useMemo(() => StyleSheet.create({
-  pulseWrapper: {
-    width: 100,
-    height: 40,
-    overflow: 'hidden',
-    position: 'relative',
+  mainButton: {
+    backgroundColor: '#FFF',
+    borderRadius: NavRadius.xl,
+    paddingVertical: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  pulseTrack: {
-    position: 'absolute',
-    width: 300,
-    height: '100%',
+  mainButtonDisabled: {
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  mainButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
   },
-  ecgLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: '100%',
+  mainButtonText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111',
   },
-  ecgFlat: {
-    width: 30,
-    height: 1.5,
-    backgroundColor: NavColors.danger,
-    opacity: 0.6,
+  mainButtonTextActive: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FF007B',
   },
-  ecgSpike: {
-    width: 2,
-    height: 30,
-    backgroundColor: NavColors.danger,
-    marginHorizontal: 4,
+  mainButtonTextDisabled: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FF007B',
   },
-  pulseGlow: {
-    position: 'absolute',
-    right: 0,
-    width: 30,
-    top: 0,
-    bottom: 0,
-    backgroundColor: NavColors.bg2,
+  contentPadding: {
+    paddingHorizontal: NavSpacing.xl,
+    paddingTop: NavSpacing.xl,
   },
-}), [NavColors]);
-
-/* ─────────────────────────────────────────── */
-/*  Stat card styles                           */
-/* ─────────────────────────────────────────── */
-
-const useCardStyles = (NavColors: ThemeColors) => React.useMemo(() => StyleSheet.create({
-  root: {
-    width: '47%',
-    backgroundColor: NavColors.bg2,
-    borderRadius: NavRadius.md,
+  offensiveCard: {
+    borderRadius: NavRadius.lg,
+    padding: NavSpacing.lg,
     borderWidth: 1,
-    padding: NavSpacing.md,
-    gap: 6,
-    overflow: 'hidden',
-    position: 'relative',
+    borderColor: '#FDE68A',
   },
-  glow: {
-    position: 'absolute',
-    top: -16,
-    right: -16,
+  offensiveTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
+  },
+  iconCircle: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    opacity: 0.05,
-  },
-  iconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: NavRadius.sm,
-    alignItems: 'center',
     justifyContent: 'center',
-  },
-  valueRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 3,
-  },
-  value: {
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  unit: {
-    fontSize: 11,
-    color: NavColors.textMuted,
-    fontWeight: '600',
-    marginBottom: 3,
-  },
-  labelRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    shadowColor: '#FF8800',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
-  liveDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
+  offensiveTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#D97706',
   },
-  label: {
-    fontSize: 11,
-    color: NavColors.textSecondary,
+  offensiveSub: {
+    fontSize: 13,
+    color: '#F59E0B',
     fontWeight: '500',
   },
-}), [NavColors]);
-
-/* ─────────────────────────────────────────── */
-/*  Action styles                              */
-/* ─────────────────────────────────────────── */
-
-const useActionStyles = (NavColors: ThemeColors) => React.useMemo(() => StyleSheet.create({
-  root: {
-    width: '47%',
-    backgroundColor: NavColors.bg2,
-    borderRadius: NavRadius.md,
-    borderWidth: 1,
-    padding: NavSpacing.md,
-    gap: 8,
-    alignItems: 'flex-start',
+  weekRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  iconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: NavRadius.sm,
+  dayCol: {
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 4,
   },
-  label: {
-    fontSize: 13,
+  dayCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dayCircleDashed: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dayCircleSolid: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dayText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#4B5563',
+  },
+  dayMed: {
+    fontSize: 9,
+    color: '#F59E0B',
     fontWeight: '700',
-    color: NavColors.textPrimary,
+  },
+  listHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginTop: NavSpacing.xl,
+    marginBottom: NavSpacing.md,
+  },
+  listTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  listSubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  historyCardV2: {
+    borderWidth: 1,
+    borderRadius: NavRadius.lg,
+    padding: NavSpacing.lg,
+    marginBottom: NavSpacing.md,
+    // Add glowing shadow inside
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  historyCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: NavSpacing.md,
+  },
+  historyTextContainer: {
+    marginLeft: NavSpacing.md,
+    flex: 1,
+  },
+  historyTitleText: {
+    fontSize: 16,
+    fontWeight: '800',
     letterSpacing: 0.2,
   },
-  comingSoon: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+  historyTime: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  badgeTopRight: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: NavRadius.full,
-    borderWidth: 1,
   },
-  comingSoonText: {
-    fontSize: 10,
+  badgeTopRightText: {
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  metricsScroll: {
+    flexDirection: 'row',
+    gap: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  metricBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: NavRadius.md,
+    gap: 6,
+  },
+  metricValue: {
+    fontSize: 13,
     fontWeight: '700',
-    letterSpacing: 0.5,
   },
-}), [NavColors]);
+});

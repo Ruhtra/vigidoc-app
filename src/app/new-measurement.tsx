@@ -1,479 +1,445 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
   Platform,
-  Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  ScrollView,
+  Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import Animated, { FadeInDown, SlideInRight } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { 
+  FadeInDown, 
+  useAnimatedStyle, 
+  useSharedValue, 
+  withRepeat, 
+  withSequence, 
+  withTiming
+} from 'react-native-reanimated';
 
-import { NavColorsDark as NavColors, NavSpacing, NavRadius } from '@/constants/nav-theme';
+import { useMeasurementStore } from '@stores/measurement.store';
+import { useThemeColors } from '@hooks/use-theme-colors';
+import { NavSpacing, NavRadius } from '@constants/nav-theme';
 
-/**
- * Interface para representar os dados de uma aferição
- */
-interface MeasurementData {
-  pa?: string; // Pressão Arterial
-  fc?: number; // Frequência Cardíaca
-  temp?: number; // Temperatura
-  spo2?: number; // Saturação
-  peso?: number; // Peso
-  dor: number | null; // Nível de Dor (0-10)
-  observacoes?: string;
-  timestamp: string;
+const MEASUREMENT_TYPES = [
+  { id: 'pa' as const, title: 'Pressão (PA)', icon: 'speedometer-outline', color: '#00D4FF', unit: 'mmHg' },
+  { id: 'fc' as const, title: 'Frequência (FC)', icon: 'heart-outline', color: '#FF4466', unit: 'bpm' },
+  { id: 'temp' as const, title: 'Temperatura', icon: 'thermometer-outline', color: '#F97316', unit: 'ºC' },
+  { id: 'spo2' as const, title: 'Oxigenação', icon: 'water-outline', color: '#00FF88', unit: '%' },
+  { id: 'peso' as const, title: 'Peso', icon: 'barbell-outline', color: '#7B2FFF', unit: 'kg' },
+  { id: 'dor' as const, title: 'Nível de Dor', icon: 'alert-circle-outline', color: '#EAB308', unit: '/10' },
+];
+
+type Severity = 'normal' | 'alert' | 'critical';
+
+function getMetricSeverity(id: string, value: any): Severity {
+  if (!value) return 'normal';
+  if (id === 'pa') {
+    const sis = value.sistolica;
+    const dia = value.diastolica;
+    if (sis >= 140 || dia >= 90) return 'critical';
+    if (sis >= 130 || dia >= 85) return 'alert';
+    return 'normal';
+  }
+  if (id === 'fc') {
+    const v = value.value;
+    if (v < 50 || v > 110) return 'critical';
+    if (v < 60 || v > 100) return 'alert';
+    return 'normal';
+  }
+  if (id === 'temp') {
+    const v = value.value;
+    if (v > 37.8 || v < 35.5) return 'critical';
+    if (v > 37.2 || v < 36.1) return 'alert';
+    return 'normal';
+  }
+  if (id === 'spo2') {
+    const v = value.value;
+    if (v <= 90) return 'critical';
+    if (v <= 94) return 'alert';
+    return 'normal';
+  }
+  if (id === 'dor') {
+    const v = value.value;
+    if (v >= 8) return 'critical';
+    if (v >= 4) return 'alert';
+    return 'normal';
+  }
+  return 'normal';
 }
 
-export default function NewMeasurementScreen() {
-  const router = useRouter();
+function getSeverityColor(sev: Severity) {
+  if (sev === 'critical') return '#FF4466';
+  if (sev === 'alert') return '#F59E0B';
+  return '#00FF88'; 
+}
 
-  // Estado local para os inputs
-  const [pa, setPa] = useState('');
-  const [fc, setFc] = useState('');
-  const [temp, setTemp] = useState('');
-  const [spo2, setSpo2] = useState('');
-  const [peso, setPeso] = useState('');
-  const [dor, setDor] = useState<number | null>(null);
-  const [observacoes, setObservacoes] = useState('');
+const PulseRing = ({ color }: { color: string }) => {
+  const pulse = useSharedValue(1);
+  const opacity = useSharedValue(0.3);
 
-  // Máscara simples para Pressão Arterial (ex: 120/80)
-  const handlePaChange = (text: string) => {
-    // Remove tudo que não for número ou barra
-    const cleaned = text.replace(/[^0-9/]/g, '');
-    
-    // Auto-insere a barra após o 3º dígito se não houver
-    if (cleaned.length === 3 && !cleaned.includes('/')) {
-      setPa(cleaned + '/');
-    } else if (cleaned.length > 7) {
-      setPa(cleaned.slice(0, 7)); // Limita tamanho
-    } else {
-      setPa(cleaned);
-    }
-  };
+  useEffect(() => {
+    pulse.value = withRepeat(withSequence(withTiming(1.3, { duration: 1200 }), withTiming(1, { duration: 1200 })), -1);
+    opacity.value = withRepeat(withSequence(withTiming(0.05, { duration: 1200 }), withTiming(0.3, { duration: 1200 })), -1);
+  }, []);
 
-  const isFormValid = () => {
-    return (
-      pa.length > 0 ||
-      fc.length > 0 ||
-      temp.length > 0 ||
-      spo2.length > 0 ||
-      peso.length > 0 ||
-      dor !== null ||
-      observacoes.length > 0
-    );
-  };
-
-  const handleSave = () => {
-    if (!isFormValid()) {
-      Alert.alert('Dados insuficientes', 'Por favor, preencha pelo menos um campo para salvar.');
-      return;
-    }
-
-    const finalData: MeasurementData = {
-      pa: pa || undefined,
-      fc: fc ? Number(fc) : undefined,
-      temp: temp ? Number(temp.replace(',', '.')) : undefined,
-      spo2: spo2 ? Number(spo2) : undefined,
-      peso: peso ? Number(peso.replace(',', '.')) : undefined,
-      dor,
-      observacoes: observacoes || undefined,
-      timestamp: new Date().toISOString(),
-    };
-
-    console.log('✅ Nova Aferição Salva:', finalData);
-    
-    Alert.alert(
-      'Sucesso', 
-      'Aferição registrada com sucesso!',
-      [{ text: 'OK', onPress: () => router.back() }]
-    );
-  };
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulse.value }],
+    opacity: opacity.value,
+  }));
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
-    >
-      <StatusBar style="light" />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Registrar Sinais Vitais</Text>
-          <Text style={styles.subtitle}>
-            {new Date().toLocaleDateString('pt-BR', { 
-              weekday: 'long', 
-              day: 'numeric', 
-              month: 'long' 
-            })}
-          </Text>
-        </View>
-        <TouchableOpacity 
-          onPress={() => router.back()} 
-          style={styles.closeButton}
-          accessibilityLabel="Fechar"
-        >
-          <Ionicons name="close" size={24} color={NavColors.textSecondary} />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Animated.View entering={FadeInDown.duration(400).delay(100)}>
-          {/* Card: Sinais Vitais */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Sinais Vitais</Text>
-            
-            <View style={styles.grid}>
-              <VitalInput
-                label="Pressão Arterial"
-                placeholder="120/80"
-                value={pa}
-                onChangeText={handlePaChange}
-                icon="heart-outline"
-                unit="mmHg"
-                keyboardType="numeric"
-              />
-              <VitalInput
-                label="Frequência Cardíaca"
-                placeholder="75"
-                value={fc}
-                onChangeText={setFc}
-                icon="speedometer-outline"
-                unit="bpm"
-                keyboardType="numeric"
-              />
-              <VitalInput
-                label="Temperatura"
-                placeholder="36.5"
-                value={temp}
-                onChangeText={setTemp}
-                icon="thermometer-outline"
-                unit="°C"
-                keyboardType="decimal-pad"
-              />
-              <VitalInput
-                label="Saturação (SPO2)"
-                placeholder="98"
-                value={spo2}
-                onChangeText={setSpo2}
-                icon="water-outline"
-                unit="%"
-                keyboardType="numeric"
-              />
-              <VitalInput
-                label="Peso Atual"
-                placeholder="70.0"
-                value={peso}
-                onChangeText={setPeso}
-                icon="fitness-outline"
-                unit="kg"
-                keyboardType="decimal-pad"
-              />
-            </View>
-          </View>
-
-          {/* Card: Nível de Dor */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Nível de Dor</Text>
-            <Text style={styles.sectionSubtitle}>Como você avalia sua dor agora?</Text>
-            
-            <View style={styles.painContainer}>
-              <View style={styles.painGrid}>
-                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((level) => (
-                  <TouchableOpacity
-                    key={level}
-                    style={[
-                      styles.painButton,
-                      dor === level && styles.painButtonSelected,
-                      dor === level && { backgroundColor: getPainColor(level) }
-                    ]}
-                    onPress={() => setDor(level)}
-                  >
-                    <Text style={[
-                      styles.painButtonText,
-                      dor === level && styles.painButtonTextSelected
-                    ]}>
-                      {level}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <View style={styles.painLabels}>
-                <Text style={styles.painLabel}>Sem dor</Text>
-                <Text style={styles.painLabel}>Pior dor possível</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Card: Observações */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Observações Extras</Text>
-            <TextInput
-              style={styles.textArea}
-              placeholder="Descreva sintomas extras ou como você está se sentindo..."
-              placeholderTextColor={NavColors.textMuted}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-              value={observacoes}
-              onChangeText={setObservacoes}
-            />
-          </View>
-          
-          {/* Espaçamento para o botão fixo */}
-          <View style={{ height: 100 }} />
-        </Animated.View>
-      </ScrollView>
-
-      {/* Action Button */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[
-            styles.saveButton,
-            !isFormValid() && styles.saveButtonDisabled
-          ]}
-          onPress={handleSave}
-          disabled={!isFormValid()}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.saveButtonText}>Salvar Aferição</Text>
-          <Ionicons name="chevron-forward" size={20} color="#FFF" />
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+    <Animated.View style={[
+      { position: 'absolute', width: '130%', height: '130%', borderRadius: 100, backgroundColor: color },
+      animatedStyle
+    ]} />
   );
-}
+};
 
-// Sub-componente para Inputs de Sinais Vitais
-function VitalInput({ 
-  label, 
-  placeholder, 
-  value, 
-  onChangeText, 
-  icon, 
-  unit,
-  keyboardType 
-}: any) {
+const GlowText = ({ text, color, style }: { text: string; color: string; style: any }) => {
   return (
-    <View style={styles.inputWrapper}>
-      <Text style={styles.inputLabel}>{label}</Text>
-      <View style={styles.inputContainer}>
-        <Ionicons name={icon} size={20} color={NavColors.cyan} style={styles.inputIcon} />
-        <TextInput
-          style={styles.input}
-          placeholder={placeholder}
-          placeholderTextColor={NavColors.textMuted}
-          value={value}
-          onChangeText={onChangeText}
-          keyboardType={keyboardType}
-        />
-        <Text style={styles.unitText}>{unit}</Text>
-      </View>
+    <View>
+      <Text style={[style, { color, position: 'absolute', textShadowColor: color, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 10, opacity: 0.6 }]}>{text}</Text>
+      <Text style={[style, { color }]}>{text}</Text>
     </View>
   );
 }
 
-// Helpers
-function getPainColor(level: number) {
-  if (level === 0) return '#10B981'; // Green
-  if (level <= 3) return '#F59E0B'; // Yellow/Orange
-  if (level <= 7) return '#EF4444'; // Red
-  return '#7F1D1D'; // Dark Red
-}
+export default function NewMeasurementScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const measurementState = useMeasurementStore();
+  const NavColors = useThemeColors();
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: NavColors.bg0,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: NavSpacing.xl,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: NavSpacing.lg,
-    backgroundColor: NavColors.bg1,
-    borderBottomWidth: 1,
-    borderBottomColor: NavColors.borderSoft,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: NavColors.textPrimary,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: NavColors.textSecondary,
-    marginTop: 4,
-    textTransform: 'capitalize',
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: NavColors.bg3,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollContent: {
-    padding: NavSpacing.xl,
-  },
-  section: {
-    backgroundColor: NavColors.bg1,
-    borderRadius: NavRadius.lg,
-    padding: NavSpacing.lg,
-    marginBottom: NavSpacing.lg,
-    // Sombra leve para efeito de profundidade
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: NavColors.textPrimary,
-    marginBottom: NavSpacing.md,
-  },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: NavColors.textSecondary,
-    marginBottom: NavSpacing.lg,
-  },
-  grid: {
-    gap: NavSpacing.lg,
-  },
-  inputWrapper: {
-    marginBottom: 4,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: NavColors.textSecondary,
-    marginBottom: 8,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: NavColors.bg0,
-    borderRadius: NavRadius.md,
-    borderWidth: 1,
-    borderColor: NavColors.border,
-    paddingHorizontal: NavSpacing.md,
-    height: 56,
-  },
-  inputIcon: {
-    marginRight: NavSpacing.sm,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: NavColors.textPrimary,
-    fontWeight: '500',
-  },
-  unitText: {
-    fontSize: 14,
-    color: NavColors.textMuted,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  painContainer: {
-    marginTop: 8,
-  },
-  painGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  painButton: {
-    width: '16.5%', // Aproximadamente 6 por linha ou ajustado para 11 itens
-    aspectRatio: 1,
-    borderRadius: NavRadius.sm,
-    backgroundColor: NavColors.bg3,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: NavColors.border,
-  },
-  painButtonSelected: {
-    borderColor: 'transparent',
-    transform: [{ scale: 1.1 }],
-  },
-  painButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: NavColors.textSecondary,
-  },
-  painButtonTextSelected: {
-    color: '#FFF',
-  },
-  painLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  painLabel: {
-    fontSize: 12,
-    color: NavColors.textMuted,
-    fontWeight: '600',
-  },
-  textArea: {
-    backgroundColor: NavColors.bg0,
-    borderRadius: NavRadius.md,
-    borderWidth: 1,
-    borderColor: NavColors.border,
-    padding: NavSpacing.md,
-    color: NavColors.textPrimary,
-    fontSize: 16,
-    minHeight: 120,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: NavSpacing.xl,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-    backgroundColor: NavColors.bg1,
-    borderTopWidth: 1,
-    borderTopColor: NavColors.borderSoft,
-  },
-  saveButton: {
-    backgroundColor: '#F97316', // Laranja solicitado (Orange-500)
-    height: 60,
-    borderRadius: NavRadius.xl,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#F97316',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  saveButtonDisabled: {
-    backgroundColor: NavColors.bg3,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  saveButtonText: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '800',
-    marginRight: 8,
-  },
-});
+  const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [val1, setVal1] = useState('');
+  const [val2, setVal2] = useState('');
+  const [timeRemaining, setTimeRemaining] = useState<string>('10:00');
+  const [headerTheme, setHeaderTheme] = useState<{ colors: [string, string]; icon: any }>({
+    colors: ['#0C1526', '#02040E'],
+    icon: 'sunny'
+  });
+  
+  const inputRef = useRef<TextInput>(null);
+  const diastolicRef = useRef<TextInput>(null);
+
+  const count = measurementState.getMeasurementCount();
+
+  useEffect(() => {
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 12) {
+      setHeaderTheme({ colors: ['#00D4FF', '#007BF5'], icon: 'partly-sunny' });
+    } else if (hour >= 12 && hour < 18) {
+      setHeaderTheme({ colors: ['#FF7B00', '#FF007B'], icon: 'sunny' });
+    } else if (hour >= 18 && hour < 24) {
+      setHeaderTheme({ colors: ['#7B2FFF', '#3A0088'], icon: 'moon' });
+    } else {
+      setHeaderTheme({ colors: ['#0C1526', '#02040E'], icon: 'moon-outline' });
+    }
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (measurementState.status === 'measuring' && measurementState.startTime) {
+        const elapsed = Date.now() - measurementState.startTime;
+        const remaining = 10 * 60 * 1000 - elapsed;
+        if (remaining <= 0) {
+          measurementState.finalizeMeasurement();
+          router.back();
+        } else {
+          const mins = Math.floor(remaining / 60000);
+          const secs = Math.floor((remaining % 60000) / 1000);
+          setTimeRemaining(`${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`);
+        }
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [measurementState.status, measurementState.startTime]);
+
+  const handleSaveItem = (id: string) => {
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (id === 'pa') {
+       if (!val1 || !val2) return;
+       measurementState.addMeasurement('pa', { sistolica: Number(val1), diastolica: Number(val2), time: timeStr });
+    } else {
+       if (!val1) return;
+       measurementState.addMeasurement(id as any, { value: Number(val1), time: timeStr });
+    }
+    setActiveModal(null);
+    setVal1('');
+    setVal2('');
+    
+    if (measurementState.getMeasurementCount() >= 5) {
+       if (measurementState.getMeasurementCount() === 5 && !measurementState.measurements[id as keyof typeof measurementState.measurements]) {
+           setTimeout(() => {
+              measurementState.finalizeMeasurement();
+              router.back();
+           }, 800);
+       }
+    }
+  };
+
+  const handleRegistrar = () => {
+    if (count < 6) {
+      Alert.alert(
+        'Medição Incompleta',
+        `Você realizou ${count} de 6 aferições. Deseja realmente finalizar o registro com dados faltando?`,
+        [
+          { text: 'Continuar Medindo', style: 'cancel' },
+          { 
+            text: 'Sim, Finalizar', 
+            onPress: () => {
+              measurementState.finalizeMeasurement();
+              router.back();
+            }
+          },
+        ]
+      );
+    } else {
+      measurementState.finalizeMeasurement();
+      router.back();
+    }
+  };
+
+  const openModal = (id: string) => {
+    setVal1('');
+    setVal2('');
+    setActiveModal(id);
+  };
+
+  const activeItemData = activeModal ? MEASUREMENT_TYPES.find(m => m.id === activeModal) : null;
+
+  return (
+    <View style={{ flex: 1, backgroundColor: NavColors.bg0 }}>
+      <StatusBar style="light" />
+      
+      {/* Background Grid Pattern or Glow */}
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.4, backgroundColor: NavColors.bg0 }}>
+        {/* We can place additional futuristic decorations here if needed */}
+      </View>
+      
+      <Animated.View entering={FadeInDown.duration(600)}>
+        <LinearGradient
+          colors={headerTheme.colors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ paddingTop: insets.top + 10, paddingHorizontal: 20, paddingBottom: 25, borderBottomLeftRadius: 32, borderBottomRightRadius: 32 }}
+        >
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <TouchableOpacity onPress={() => router.back()} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
+              <Ionicons name="chevron-back" size={24} color="#FFF" />
+            </TouchableOpacity>
+            <View style={{ backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
+               <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800' }}>
+                 {measurementState.status === 'measuring' ? timeRemaining : 'Aguardando'}
+               </Text>
+            </View>
+          </View>
+
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View>
+              <Text style={{ fontSize: 28, fontWeight: '900', color: '#FFF', letterSpacing: -0.5 }}>Nova Medição</Text>
+              <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', fontWeight: '600' }}>Acompanhamento de Sinais</Text>
+            </View>
+            <View style={{ width: 64, height: 64, borderRadius: 32, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)', backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' }}>
+               <GlowText text={`${count}/6`} color="#FFF" style={{ fontSize: 20, fontWeight: '900' }} />
+            </View>
+          </View>
+        </LinearGradient>
+      </Animated.View>
+
+      <ScrollView contentContainerStyle={{ padding: NavSpacing.xl, paddingBottom: 120 }} showsVerticalScrollIndicator={false} bounces={false}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+          {MEASUREMENT_TYPES.map((item, idx) => {
+            const dataVal = measurementState.measurements[item.id as keyof typeof measurementState.measurements];
+            const isFilled = !!dataVal;
+            const severity = getMetricSeverity(item.id, dataVal);
+            const statusColor = isFilled ? getSeverityColor(severity) : item.color;
+            const cardBgColor = isFilled ? `${statusColor}15` : NavColors.bg2; 
+            const cardBorderColor = isFilled ? statusColor : 'rgba(255, 255, 255, 0.1)';
+
+            return (
+              <Animated.View key={item.id} entering={FadeInDown.duration(600).delay(idx * 60)} style={{ width: '48%', marginBottom: 16 }}>
+                <TouchableOpacity 
+                   style={{
+                     padding: 14,
+                     borderRadius: NavRadius.lg,
+                     borderWidth: 1,
+                     height: 120,
+                     justifyContent: 'space-between',
+                     backgroundColor: cardBgColor,
+                     borderColor: cardBorderColor,
+                     shadowColor: statusColor,
+                     shadowOffset: { width: 0, height: 4 },
+                     shadowOpacity: isFilled ? 0.3 : 0,
+                     shadowRadius: 10,
+                   }} 
+                   onPress={() => openModal(item.id)}
+                   activeOpacity={0.7}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                     <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: isFilled ? statusColor : 'rgba(255, 255, 255, 0.05)', justifyContent: 'center', alignItems: 'center' }}>
+                        {isFilled && <PulseRing color={statusColor} />}
+                        <Ionicons name={item.icon as any} size={22} color={isFilled ? '#FFF' : statusColor} />
+                     </View>
+                  </View>
+                  
+                  <View style={{ marginTop: 8 }}>
+                     <Text style={{ fontSize: 13, fontWeight: '800', color: isFilled ? statusColor : '#A0AEC0', letterSpacing: 0.5 }}>{item.title}</Text>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 4 }}>
+                     <View>
+                        {isFilled ? (
+                           <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                             <Text style={{ fontSize: 22, fontWeight: '900', color: NavColors.textPrimary }}>
+                               {item.id === 'pa' ? `${(dataVal as any).sistolica}/${(dataVal as any).diastolica}` : (dataVal as any).value}
+                             </Text>
+                             <Text style={{ fontSize: 12, fontWeight: '700', color: NavColors.textMuted, marginLeft: 4 }}>
+                               {item.unit}
+                             </Text>
+                           </View>
+                        ) : (
+                           <Text style={{ fontSize: 12, color: '#4A5568', fontWeight: '700' }}>Dados Pendentes</Text>
+                        )}
+                     </View>
+                     {isFilled && <Ionicons name={severity === 'normal' ? 'checkmark-circle' : 'warning'} size={20} color={statusColor} style={{ marginLeft: 'auto' }} />}
+                  </View>
+                </TouchableOpacity>
+              </Animated.View>
+            );
+          })}
+        </View>
+      </ScrollView>
+
+      {/* Futuristic Finalize Button */}
+      <View style={{ position: 'absolute', bottom: 30, left: 20, right: 20 }}>
+        <TouchableOpacity
+          style={[{ height: 60, borderRadius: 30, overflow: 'hidden' }]}
+          onPress={handleRegistrar}
+          disabled={count === 0}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={count === 0 ? [NavColors.bg1, NavColors.bg2] : ['#00D4FF', '#7B2FFF']}
+            style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: count === 0 ? NavColors.borderSoft : 'rgba(255,255,255,0.4)', borderRadius: 30 }}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <GlowText 
+              text={count === 0 ? 'INSIRA MÍNIMO DE 1 SINAL' : 'FINALIZAR REGISTRO'} 
+              color={count === 0 ? NavColors.textMuted : '#FFF'} 
+              style={{ fontSize: 16, fontWeight: '900', letterSpacing: 1 }} 
+            />
+            {count > 0 && <Ionicons name="checkmark-done" size={20} color="#FFF" />}
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+
+      {/* Modal / Dialog Input */}
+      <Modal 
+        visible={!!activeModal} 
+        transparent 
+        animationType="fade"
+        onShow={() => { 
+          setTimeout(() => {
+            inputRef.current?.focus();
+          }, 150);
+        }}
+      >
+        <KeyboardAvoidingView style={{ flex: 1, backgroundColor: 'rgba(2, 4, 14, 0.9)', justifyContent: 'center', padding: 20 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <Animated.View entering={FadeInDown.duration(400)} style={{ borderRadius: 30, overflow: 'hidden', backgroundColor: NavColors.bg1, borderWidth: 1, borderColor: activeItemData?.color ? `${activeItemData.color}50` : 'rgba(255,255,255,0.1)', shadowColor: activeItemData?.color, shadowOpacity: 0.2, shadowRadius: 20 }}>
+             {activeItemData && (
+                <>
+                  <View style={{ padding: 30, alignItems: 'center' }}>
+                     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: activeItemData.color, opacity: 0.1 }} />
+                     <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: `${activeItemData.color}20`, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: activeItemData.color }}>
+                        <PulseRing color={activeItemData.color} />
+                        <Ionicons name={activeItemData.icon as any} size={40} color={activeItemData.color} />
+                     </View>
+                     <Text style={{ fontSize: 24, fontWeight: '900', color: NavColors.textPrimary, marginTop: 20 }}>{activeItemData.title}</Text>
+                     <Text style={{ color: NavColors.textMuted, marginTop: 8, fontWeight: '700' }}>Hoje às {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+                  </View>
+                  
+                  <View style={{ padding: 25, backgroundColor: NavColors.bg2 }}>
+                          {activeModal === 'pa' ? (
+                       <View style={{ flexDirection: 'row', gap: 15, justifyContent: 'center', alignItems: 'center', marginBottom: 30 }}>
+                         <View style={{ backgroundColor: NavColors.bg0, borderRadius: 20, width: 110, height: 80, borderWidth: 1, borderColor: NavColors.borderSoft, alignItems: 'center', justifyContent: 'center' }}>
+                           <TextInput 
+                             ref={inputRef}
+                             style={{ color: NavColors.textPrimary, fontSize: 28, fontWeight: '900', textAlign: 'center', width: '100%' }} 
+                             placeholder="120" 
+                             keyboardType="numeric" 
+                             value={val1} 
+                             onChangeText={setVal1} 
+                             placeholderTextColor={NavColors.textMuted} 
+                             returnKeyType="next"
+                             onSubmitEditing={() => diastolicRef.current?.focus()}
+                             blurOnSubmit={false}
+                           />
+                         </View>
+                         <Text style={{ color: activeItemData.color, fontSize: 32, fontWeight: '900', opacity: 0.8 }}>/</Text>
+                         <View style={{ backgroundColor: NavColors.bg0, borderRadius: 20, width: 110, height: 80, borderWidth: 1, borderColor: NavColors.borderSoft, alignItems: 'center', justifyContent: 'center' }}>
+                           <TextInput 
+                             ref={diastolicRef}
+                             style={{ color: NavColors.textPrimary, fontSize: 28, fontWeight: '900', textAlign: 'center', width: '100%' }} 
+                             placeholder="80" 
+                             keyboardType="numeric" 
+                             value={val2} 
+                             onChangeText={setVal2} 
+                             placeholderTextColor={NavColors.textMuted} 
+                             returnKeyType="done"
+                             onSubmitEditing={() => handleSaveItem(activeModal as string)}
+                           />
+                         </View>
+                       </View>
+                    ) : (
+                       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', backgroundColor: NavColors.bg0, borderRadius: 20, height: 80, borderWidth: 1, borderColor: NavColors.borderSoft, paddingHorizontal: 20, marginBottom: 30 }}>
+                         <TextInput 
+                           ref={inputRef}
+                           style={{ color: NavColors.textPrimary, fontSize: 32, fontWeight: '900', textAlign: 'center', minWidth: 50 }} 
+                           placeholder="0" 
+                           keyboardType="numeric" 
+                           value={val1} 
+                           onChangeText={(t) => {
+                             if (activeModal === 'dor') {
+                               const n = Number(t);
+                               if (n > 10) return;
+                             }
+                             setVal1(t);
+                           }} 
+                           placeholderTextColor={NavColors.textMuted} 
+                           returnKeyType="done"
+                           onSubmitEditing={() => handleSaveItem(activeModal as string)}
+                         />
+                         <Text style={{ color: activeItemData.color, fontSize: 20, fontWeight: '800', marginLeft: 8, opacity: 0.8 }}>
+                           {activeItemData.unit}
+                         </Text>
+                       </View>
+                    )}
+                    
+                    <View style={{ flexDirection: 'row', gap: 15 }}>
+                       <TouchableOpacity style={{ flex: 1, height: 60, borderRadius: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: NavColors.bg0, borderWidth: 1, borderColor: NavColors.borderSoft }} onPress={() => setActiveModal(null)}>
+                         <Text style={{ color: NavColors.textMuted, fontWeight: '800' }}>CANCELAR</Text>
+                       </TouchableOpacity>
+                       <TouchableOpacity style={{ flex: 1, height: 60, borderRadius: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: activeItemData.color, shadowColor: activeItemData.color, shadowOpacity: 0.4, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10 }} onPress={() => handleSaveItem(activeModal as string)}>
+                         <Text style={{ color: '#FFF', fontWeight: '900' }}>SALVAR</Text>
+                       </TouchableOpacity>
+                    </View>
+                  </View>
+                </>
+             )}
+          </Animated.View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </View>
+  );
+}
