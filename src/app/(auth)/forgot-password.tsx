@@ -46,7 +46,6 @@ type FieldInputProps = {
   returnKeyType?: 'next' | 'done' | 'send';
   onSubmitEditing?: () => void;
   blurOnSubmit?: boolean;
-  error?: string;
 };
 
 const FieldInput = React.forwardRef<TextInput, FieldInputProps>(({
@@ -61,7 +60,6 @@ const FieldInput = React.forwardRef<TextInput, FieldInputProps>(({
   returnKeyType,
   onSubmitEditing,
   blurOnSubmit,
-  error,
 }, ref) => {
   const NavColors = useThemeColors();
   const borderColor = useSharedValue<string>(NavColors.border);
@@ -72,18 +70,13 @@ const FieldInput = React.forwardRef<TextInput, FieldInputProps>(({
     backgroundColor: withTiming(bgColor.value, { duration: 200 }),
   }));
 
-  React.useEffect(() => {
-    borderColor.value = error ? NavColors.danger : NavColors.border;
-    bgColor.value = NavColors.bg2;
-  }, [error, NavColors, borderColor, bgColor]);
-
   function handleFocus() {
     borderColor.value = NavColors.cyan;
     bgColor.value = NavColors.bg3;
   }
 
   function handleBlur() {
-    borderColor.value = error ? NavColors.danger : NavColors.border;
+    borderColor.value = NavColors.border;
     bgColor.value = NavColors.bg2;
   }
 
@@ -135,9 +128,8 @@ export default function ForgotPasswordScreen() {
   const submitScale = useSharedValue(1);
   const submitStyle = useAnimatedStyle(() => ({ 
     transform: [{ scale: submitScale.value }],
-    backgroundColor: withTiming(NavColors.cyan, { duration: 250 }),
-    shadowColor: withTiming(NavColors.cyan, { duration: 250 }),
-    borderRadius: NavRadius.md,
+    backgroundColor: NavColors.cyan,
+    shadowColor: NavColors.cyan
   }));
 
   function handleAction() {
@@ -238,7 +230,7 @@ export default function ForgotPasswordScreen() {
                     onPressIn={() => submitScale.value = withSpring(0.97)}
                     onPressOut={() => submitScale.value = withSpring(1)}
                     onPress={handleAction}
-                    style={[styles.submitButton, !email.includes('@') && styles.disabled]}
+                    style={[styles.submitButton, !email.includes('@') && styles.submitButtonDisabled]}
                   >
                     <Text style={[styles.submitText, { color: isDark ? NavColors.bg0 : '#FFF' }]}>Enviar Código →</Text>
                   </Pressable>
@@ -274,7 +266,7 @@ export default function ForgotPasswordScreen() {
                     onPressIn={() => submitScale.value = withSpring(0.97)}
                     onPressOut={() => submitScale.value = withSpring(1)}
                     onPress={handleAction}
-                    style={[styles.submitButton, code.length < 6 && styles.disabled]}
+                    style={[styles.submitButton, code.length < 6 && styles.submitButtonDisabled]}
                   >
                     <Text style={[styles.submitText, { color: isDark ? NavColors.bg0 : '#FFF' }]}>Verificar Código →</Text>
                   </Pressable>
@@ -321,7 +313,7 @@ export default function ForgotPasswordScreen() {
                     onPressIn={() => submitScale.value = withSpring(0.97)}
                     onPressOut={() => submitScale.value = withSpring(1)}
                     onPress={handleAction}
-                    style={[styles.submitButton, newPassword.length < 8 && styles.disabled]}
+                    style={[styles.submitButton, newPassword.length < 8 && styles.submitButtonDisabled]}
                   >
                     <Text style={[styles.submitText, { color: isDark ? NavColors.bg0 : '#FFF' }]}>Redefinir Senha →</Text>
                   </Pressable>
@@ -341,7 +333,7 @@ const styles = StyleSheet.create({
 
   header: { alignItems: 'center', marginBottom: NavSpacing.xl },
 
-  card: { borderRadius: 24, borderWidth: 1, padding: NavSpacing.lg, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 8, minHeight: 460 },
+  card: { borderRadius: 24, borderWidth: 1, padding: NavSpacing.lg, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 8 },
   backButton: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: NavSpacing.md, alignSelf: 'flex-start', paddingVertical: 4, paddingRight: 8 },
   backText: { fontSize: 13, fontWeight: '600' },
   cardTitle: { fontSize: 22, fontWeight: '700' },
@@ -362,7 +354,7 @@ const styles = StyleSheet.create({
 
   submitButton: { height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6 },
   submitText: { fontSize: 16, fontWeight: '700', letterSpacing: 0.4 },
-  disabled: { opacity: 0.65 },
+  submitButtonDisabled: { opacity: 0.65 },
 
   resendWrapper: { alignItems: 'center', marginTop: NavSpacing.sm },
   resendText: { fontSize: 13 },

@@ -1,10 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -20,15 +20,14 @@ import Reanimated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
 
-import { useAuth } from '@hooks/use-auth';
-import { NavSpacing, NavRadius } from '@/constants/nav-theme';
-import { loginSchema, type LoginFormSchemaType } from '@lib/schemas/auth.schema';
+import { NavSpacing } from '@/constants/nav-theme';
 import { Logo } from '@components/ui/logo';
-import { useThemeColors } from '@hooks/use-theme-colors';
-import { useThemeStore } from '@stores/theme.store';
 import { ThemeToggle } from '@components/ui/theme-toggle';
+import { useAuth } from '@hooks/use-auth';
+import { useThemeColors } from '@hooks/use-theme-colors';
+import { loginSchema, type LoginFormSchemaType } from '@lib/schemas/auth.schema';
+import { useThemeStore } from '@stores/theme.store';
 
 /* ─────────────────────────────────────────────────────────── */
 /*  Sub-components                                             */
@@ -318,34 +317,40 @@ export default function LoginScreen() {
             )}
           />
 
-          {/* Lembrar me & Esqueci Senha */}
-          <View style={styles.actionRow}>
+          {/* ── Ações Secundárias (Lembrar / Esqueci Senha) ── */}
+          <View style={styles.compactActionRow}>
             <Controller
               control={control}
               name="remember"
               render={({ field: { onChange, value } }) => (
                 <Pressable
-                  style={styles.rememberRow}
+                  style={styles.compactRemember}
                   onPress={() => onChange(!value)}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: !!value }}
                 >
                   <View 
                     style={[
-                      styles.checkbox, 
+                      styles.cyberCheckbox, 
                       { borderColor: NavColors.borderBright, backgroundColor: NavColors.bg3 }, 
                       value && { backgroundColor: NavColors.cyan, borderColor: NavColors.cyan }
                     ]}
                   >
-                    {value && <Text style={[styles.checkmark, { color: isDark ? NavColors.bg0 : '#FFF' }]}>✓</Text>}
+                    {value && <Ionicons name="checkmark" size={14} color={isDark ? NavColors.bg0 : '#FFF'} />}
                   </View>
-                  <Text style={[styles.rememberText, { color: NavColors.textSecondary }]}>Lembrar de mim</Text>
+                  <Text style={[styles.actionLabel, { color: NavColors.textSecondary }]} numberOfLines={1}>
+                    Lembrar de mim
+                  </Text>
                 </Pressable>
               )}
             />
 
-            <Pressable onPress={() => router.push('/(auth)/forgot-password' as any)}>
-              <Text style={[styles.forgotText, { color: NavColors.cyan }]}>Esqueci a senha?</Text>
+            <Pressable 
+              onPress={() => router.push('/(auth)/forgot-password' as any)}
+              style={styles.forgotPasswordLink}
+              hitSlop={12}
+            >
+              <Text style={[styles.actionLabelBold, { color: NavColors.cyan }]} numberOfLines={1}>Esqueci a senha?</Text>
             </Pressable>
           </View>
 
@@ -366,15 +371,18 @@ export default function LoginScreen() {
             </Pressable>
           </Reanimated.View>
 
-          {/* Solicitar acesso */}
-          <View style={styles.footerRow}>
-            <Text style={[styles.footerText, { color: NavColors.textMuted }]}>Sem acesso?</Text>
-            <Pressable
-              onPress={() => router.push('/(auth)/request-access')}
-              testID="btn-request-access"
-            >
-              <Text style={[styles.requestAccessText, { color: NavColors.cyan }]}>Solicitar acesso</Text>
-            </Pressable>
+          {/* ── Rodapé (Solicitar Acesso) ── */}
+          <View style={styles.compactFooterRow}>
+            <Text style={[styles.footerText, { color: NavColors.textSecondary }]}>
+              Sem acesso à plataforma?{' '}
+              
+            </Text>
+            <Text
+                onPress={() => router.push('/(auth)/request-access')}
+                style={[styles.footerLinkText, { color: NavColors.cyan }]}
+              >
+                Solicitar acesso
+              </Text>
           </View>
         </Reanimated.View>
 
@@ -397,7 +405,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: NavSpacing.md,
-    paddingVertical: NavSpacing.xxl,
+    paddingTop: NavSpacing.xxl,
+    paddingBottom: 80, // Aumentado para garantir visibilidade total no Android
   },
   header: {
     alignItems: 'center',
@@ -411,7 +420,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowRadius: 24,
     elevation: 8,
-    gap: NavSpacing.md,
     minHeight: 460, // Mantendo padrão de altura entre telas
   },
   cardHeader: {
@@ -463,6 +471,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: NavSpacing.sm,
+    marginVertical: 8,
   },
   dividerLine: {
     flex: 1,
@@ -509,36 +518,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: -4,
-  },
-  rememberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkmark: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  rememberText: {
-    fontSize: 13,
-  },
-  forgotText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
   submitButton: {
     height: 52,
     alignItems: 'center',
@@ -549,46 +528,81 @@ const styles = StyleSheet.create({
     elevation: 6,
     width: '100%',
   },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    columnGap: 8,
-    rowGap: 12,
-    marginVertical: NavSpacing.sm,
-  },
   submitButtonDisabled: {
-    opacity: 0.65,
+    opacity: 0.7,
   },
   submitText: {
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.4,
   },
-  footerRow: {
+  compactActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginVertical: 16,
+  },
+  compactRemember: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 1,
+    marginRight: 10,
+  },
+  cyberCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    alignItems: 'center',
     justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: NavSpacing.sm,
-    paddingVertical: NavSpacing.xs,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
+    flexShrink: 0,
   },
-  footerText: {
+  actionLabel: {
     fontSize: 14,
-    lineHeight: 20,
+    fontWeight: '500',
+    flexShrink: 1,
   },
-  requestAccessText: {
+  actionLabelBold: {
     fontSize: 14,
     fontWeight: '700',
+    flexShrink: 1,
+  },
+  forgotPasswordLink: {
+    paddingVertical: 4,
+  },
+  compactFooterRow: {
+    marginTop: 12,
+    width: '100%',
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerText: {
+    fontSize: 13,
+    letterSpacing: 0.2,
+    textAlign: 'center',
     lineHeight: 20,
   },
+  footerLinkButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  footerLinkText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
   copyright: {
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'center',
-    marginTop: NavSpacing.xxl,
-    letterSpacing: 0.3,
+    marginTop: NavSpacing.xl,
+    opacity: 0.5,
+    letterSpacing: 0.5,
   },
   topRightActions: {
     paddingHorizontal: NavSpacing.md,

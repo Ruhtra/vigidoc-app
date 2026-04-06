@@ -48,6 +48,7 @@ export const NavColorsDark = {
   bgInput: '#1E293B',    // Slate-800
   bgSurface: '#0F172A',  // Slate-900
   textError: '#F43F5E',
+  overlay: 'rgba(2, 6, 23, 0.85)', // Deep Slate Overlay
 } as const;
 
 export const NavColorsLight = {
@@ -95,6 +96,7 @@ export const NavColorsLight = {
   bgInput: '#F8FAFC',    // Slate-50
   bgSurface: '#FFFFFF',
   textError: '#EF4444',
+  overlay: 'rgba(15, 23, 42, 0.4)', // Muted Slate Overlay
 } as const;
 
 export type ThemeColors = Record<keyof typeof NavColorsDark, string>;

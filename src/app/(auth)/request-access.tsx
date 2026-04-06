@@ -1,23 +1,22 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { Ionicons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import Reanimated, {
   FadeIn,
   FadeInDown,
-  FadeInRight,
   FadeInLeft,
+  FadeInRight,
   FadeInUp,
   useAnimatedStyle,
   useSharedValue,
@@ -25,13 +24,13 @@ import Reanimated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { NavSpacing } from '@/constants/nav-theme';
+import { Logo } from '@components/ui/logo';
+import { ThemeToggle } from '@components/ui/theme-toggle';
+import { useThemeColors } from '@hooks/use-theme-colors';
 import { registerSchema, type RegisterFormSchemaType } from '@lib/schemas/register.schema';
 import { AuthService } from '@lib/services/auth.service';
-import { Logo } from '@components/ui/logo';
-import { NavSpacing, NavRadius } from '@/constants/nav-theme';
-import { useThemeColors } from '@hooks/use-theme-colors';
 import { useThemeStore } from '@stores/theme.store';
-import { ThemeToggle } from '@components/ui/theme-toggle';
 
 /* ─────────────────────────────────────────────────────────── */
 /*  Helpers                                                    */
@@ -468,11 +467,18 @@ export default function RequestAccessScreen() {
           </Reanimated.View>
         )}
 
-        <View style={styles.footerRow}>
-          <Text style={[styles.footerText, { color: NavColors.textMuted }]}>Já tem acesso?</Text>
-          <Pressable onPress={() => router.back()}>
-            <Text style={[styles.footerLink, { color: NavColors.cyan }]}>Fazer Login</Text>
-          </Pressable>
+        {/* ── Rodapé ── */}
+        <View style={styles.compactFooterRow}>
+          <Text style={[styles.footerText, { color: NavColors.textSecondary }]}>
+            Já possui uma conta ativa?{' '}
+            
+          </Text>
+          <Text 
+              onPress={() => router.back()} 
+              style={[styles.footerLinkText, { color: NavColors.cyan }]}
+            >
+              Fazer Login
+            </Text>
         </View>
       </Reanimated.View>
 
@@ -491,7 +497,7 @@ const styles = StyleSheet.create({
   cardHeader: { marginBottom: NavSpacing.xs },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   cardTitle: { fontSize: 22, fontWeight: '700', letterSpacing: 0.2 },
-  cardSubtitle: { fontSize: 13, marginTop: 8, lineHeight: 20 },
+  cardSubtitle: { fontSize: 14, marginTop: 8, lineHeight: 20 },
   stepperContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   stepperCircle: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   stepperNumber: { fontSize: 12, fontWeight: '700' },
@@ -517,10 +523,34 @@ const styles = StyleSheet.create({
   step2Actions: { flexDirection: 'row', gap: NavSpacing.sm, marginTop: 4 },
   secondaryButton: { flex: 1, height: 52, borderRadius: 14, backgroundColor: 'transparent', borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   secondaryButtonText: { fontSize: 15, fontWeight: '600' },
-  footerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 8 },
-  footerText: { fontSize: 13 },
-  footerLink: { fontSize: 13, fontWeight: '600' },
-  copyright: { fontSize: 11, textAlign: 'center', marginTop: NavSpacing.xl, letterSpacing: 0.3 },
+  compactFooterRow: {
+    marginTop: 12,
+    width: '100%',
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerText: {
+    fontSize: 13,
+    letterSpacing: 0.2,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  footerLinkButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  footerLinkText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  copyright: {
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: NavSpacing.xxl,
+    opacity: 0.5,
+    letterSpacing: 0.5,
+  },
   topRightActions: {
     paddingHorizontal: NavSpacing.md,
     alignItems: 'flex-end',
