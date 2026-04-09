@@ -20,6 +20,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useThemeColors } from '@hooks/use-theme-colors';
 import { NavSpacing, NavRadius } from '@constants/nav-theme';
+import { vitalsService, VitalRecordAPIResponse } from '@lib/services/vitals.service';
+import { ActivityIndicator } from 'react-native';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Severity = 'normal' | 'alert' | 'critical';
@@ -52,94 +54,76 @@ interface DayGroup {
   worstSeverity: Severity;
 }
 
-// ─── Mock Data Building ────────────────────────────────────────────────────────
-function buildMockHistory(): DayGroup[] {
-  const today = new Date();
-  const makeDate = (daysAgo: number): string => {
-    const d = new Date(today);
-    d.setDate(d.getDate() - daysAgo);
-    return d.toISOString().split('T')[0];
-  };
+// ─── Data Mapping ─────────────────────────────────────────────────────────────
+function mapApiToDayGroups(data: VitalRecordAPIResponse[]): DayGroup[] {
+  const groups: Record<string, DayGroup> = {};
+
   const formatDateLabel = (iso: string): string => {
+    const today = new Date();
     const d = new Date(iso + 'T00:00:00');
-    const diff = Math.round((today.getTime() - d.getTime()) / 86400000);
+    // Diferença em dias
+    const diff = Math.floor((new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() - new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) / 86400000);
+    
     if (diff === 0) return 'Hoje';
     if (diff === 1) return 'Ontem';
     return d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
   };
-  const makeRecord = (
-    id: string,
-    time: string,
-    pa: [number, number],
-    fc: number,
-    temp: number,
-    spo2: number,
-    peso: number,
-    dor: number,
-    filledCount: number,
-  ): MeasurementRecord => {
-    const paSev: Severity = pa[0] >= 140 || pa[1] >= 90 ? 'critical' : pa[0] >= 130 || pa[1] >= 85 ? 'alert' : 'normal';
-    const fcSev: Severity = fc < 50 || fc > 110 ? 'critical' : fc < 60 || fc > 100 ? 'alert' : 'normal';
-    const tempSev: Severity = temp > 37.8 || temp < 35.5 ? 'critical' : temp > 37.2 || temp < 36.1 ? 'alert' : 'normal';
-    const spo2Sev: Severity = spo2 <= 90 ? 'critical' : spo2 <= 94 ? 'alert' : 'normal';
-    const dorSev: Severity = dor >= 8 ? 'critical' : dor >= 4 ? 'alert' : 'normal';
-    const severities = [paSev, fcSev, tempSev, spo2Sev, dorSev];
+
+  data.forEach((record) => {
+    const dateISO = record.recordedAt.split('T')[0];
+    const dateObj = new Date(record.recordedAt);
+    const time = dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+    // Severity calculation
+    const pa = record.vitals.bloodPressure ? record.vitals.bloodPressure.split('/').map(val => val.trim() === '?' ? null : Number(val)) : [null, null];
+    const fc = record.vitals.heartRate;
+    const temp = record.vitals.temperature;
+    const spo2 = record.vitals.oxygenSaturation;
+    const dor = record.vitals.painLevel;
+    const peso = record.vitals.weight;
+
+    const paSev: Severity = (pa[0] && pa[1]) ? (pa[0] >= 140 || pa[1] >= 90 ? 'critical' : pa[0] >= 130 || pa[1] >= 85 ? 'alert' : 'normal') : 'normal';
+    const fcSev: Severity = fc ? (fc < 50 || fc > 110 ? 'critical' : fc < 60 || fc > 100 ? 'alert' : 'normal') : 'normal';
+    const tempSev: Severity = temp ? (temp > 37.8 || temp < 35.5 ? 'critical' : temp > 37.2 || temp < 36.1 ? 'alert' : 'normal') : 'normal';
+    const spo2Sev: Severity = spo2 ? (spo2 <= 90 ? 'critical' : spo2 <= 94 ? 'alert' : 'normal') : 'normal';
+    const dorSev: Severity = dor !== null ? (dor >= 8 ? 'critical' : dor >= 4 ? 'alert' : 'normal') : 'normal';
+
+    const severities: Severity[] = [paSev, fcSev, tempSev, spo2Sev, dorSev];
     const overall: Severity = severities.includes('critical') ? 'critical' : severities.includes('alert') ? 'alert' : 'normal';
-    const metrics: MetricEntry[] = [
-      { id: 'pa', icon: 'speedometer', label: 'PA', value: `${pa[0]}/${pa[1]}`, unit: 'mmHg', color: '#00D4FF', severity: paSev },
-      { id: 'fc', icon: 'heart', label: 'FC', value: `${fc}`, unit: 'bpm', color: '#FF4466', severity: fcSev },
-      { id: 'temp', icon: 'thermometer', label: 'T°', value: `${temp.toFixed(1)}`, unit: '°C', color: '#F97316', severity: tempSev },
-      { id: 'spo2', icon: 'water', label: 'O₂', value: `${spo2}`, unit: '%', color: '#00FF88', severity: spo2Sev },
-      { id: 'peso', icon: 'barbell', label: 'Kg', value: `${peso.toFixed(1)}`, unit: 'kg', color: '#A78BFA', severity: 'normal' },
-      { id: 'dor', icon: 'alert-circle', label: 'Dor', value: `${dor}`, unit: '/10', color: '#EAB308', severity: dorSev },
-    ];
-    return { id, time, overallSeverity: overall, filledCount, totalCount: 6, metrics: metrics.slice(0, filledCount) };
-  };
 
-  return [
-    {
-      dateISO: makeDate(0),
-      dateLabel: formatDateLabel(makeDate(0)),
-      worstSeverity: 'alert',
-      records: [
-        makeRecord('t-01', '08:14', [120, 80], 72, 36.5, 98, 70.2, 2, 6),
-        makeRecord('t-02', '14:30', [128, 84], 85, 37.3, 97, 70.1, 4, 6),
-        makeRecord('t-03', '20:05', [125, 82], 78, 36.8, 98, 70.0, 2, 6),
-      ],
-    },
-    {
-      dateISO: makeDate(1),
-      dateLabel: formatDateLabel(makeDate(1)),
-      worstSeverity: 'normal',
-      records: [
-        makeRecord('y-01', '07:55', [118, 78], 68, 36.4, 99, 70.4, 2, 6),
-        makeRecord('y-02', '12:20', [122, 80], 74, 36.6, 98, 70.3, 2, 6),
-        makeRecord('y-03', '18:45', [119, 79], 71, 36.5, 98, 70.2, 2, 6),
-        makeRecord('y-04', '22:10', [116, 76], 66, 36.3, 99, 70.1, 2, 6),
-      ],
-    },
-    {
-      dateISO: makeDate(2),
-      dateLabel: formatDateLabel(makeDate(2)),
-      worstSeverity: 'critical',
-      records: [
-        makeRecord('d2-01', '08:00', [118, 77], 70, 37.9, 92, 70.5, 2, 6),
-        makeRecord('d2-02', '13:00', [145, 92], 105, 38.1, 91, 70.4, 2, 6),
-        makeRecord('d2-03', '19:30', [135, 88], 95, 37.5, 94, 70.3, 2, 6),
-      ],
-    },
-    {
-      dateISO: makeDate(4),
-      dateLabel: formatDateLabel(makeDate(4)),
-      worstSeverity: 'normal',
-      records: [
-        makeRecord('d4-01', '09:00', [117, 77], 69, 36.5, 98, 70.6, 2, 6),
-      ],
+    const metrics: MetricEntry[] = [];
+    if (record.vitals.bloodPressure) metrics.push({ id: 'pa', icon: 'speedometer', label: 'PA', value: record.vitals.bloodPressure, unit: 'mmHg', color: '#00D4FF', severity: paSev });
+    if (fc) metrics.push({ id: 'fc', icon: 'heart', label: 'FC', value: `${fc}`, unit: 'bpm', color: '#FF4466', severity: fcSev });
+    if (temp) metrics.push({ id: 'temp', icon: 'thermometer', label: 'T°', value: `${temp.toFixed(1)}`, unit: '°C', color: '#F97316', severity: tempSev });
+    if (spo2) metrics.push({ id: 'spo2', icon: 'water', label: 'O₂', value: `${spo2}`, unit: '%', color: '#00FF88', severity: spo2Sev });
+    if (dor !== null) metrics.push({ id: 'dor', icon: 'alert-circle', label: 'Dor', value: `${dor}`, unit: '/10', color: '#EAB308', severity: dorSev });
+    if (peso) metrics.push({ id: 'peso', icon: 'barbell', label: 'Kg', value: `${peso.toFixed(1)}`, unit: 'kg', color: '#A78BFA', severity: 'normal' });
+
+    const measurement: MeasurementRecord = {
+      id: record.id,
+      time,
+      overallSeverity: overall,
+      filledCount: metrics.length,
+      totalCount: 6,
+      metrics
+    };
+
+    if (!groups[dateISO]) {
+      groups[dateISO] = {
+        dateISO,
+        dateLabel: formatDateLabel(dateISO),
+        records: [],
+        worstSeverity: 'normal'
+      };
     }
-  ];
-}
 
-const ALL_HISTORY = buildMockHistory();
+    groups[dateISO].records.push(measurement);
+    if (overall === 'critical') groups[dateISO].worstSeverity = 'critical';
+    else if (overall === 'alert' && groups[dateISO].worstSeverity !== 'critical') groups[dateISO].worstSeverity = 'alert';
+  });
+
+  return Object.values(groups).sort((a, b) => b.dateISO.localeCompare(a.dateISO));
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 function getSeverityColor(sev: Severity) {
@@ -356,6 +340,8 @@ const groupStyles = StyleSheet.create({
 export default function HistoricoScreen() {
   const NavColors = useThemeColors();
   const insets = useSafeAreaInsets();
+  const [loading, setLoading] = useState(true);
+  const [allHistory, setAllHistory] = useState<DayGroup[]>([]);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [timeRange, setTimeRange] = useState<TimeRange>(7);
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
@@ -363,6 +349,28 @@ export default function HistoricoScreen() {
     colors: ['#0C1526', '#02040E'],
     icon: 'sunny'
   });
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const response = await vitalsService.getHistory(90);
+      const mapped = mapApiToDayGroups(response.data);
+      setAllHistory(mapped);
+      
+      // Expand o primeiro dia por padrão
+      if (mapped.length > 0) {
+        setExpandedDays({ [mapped[0].dateISO]: true });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar histórico:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -380,14 +388,18 @@ export default function HistoricoScreen() {
   const filteredHistory = useMemo(() => {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - timeRange);
-    return ALL_HISTORY
-      .filter(group => new Date(group.dateISO + 'T00:00:00') >= cutoffDate)
+    
+    // Normalizar para meia noite para comparação justa de dias
+    const cutoffTime = new Date(cutoffDate.getFullYear(), cutoffDate.getMonth(), cutoffDate.getDate()).getTime();
+
+    return allHistory
+      .filter(group => new Date(group.dateISO + 'T00:00:00').getTime() >= cutoffTime)
       .map(group => ({
         ...group,
         records: group.records.filter(record => filterStatus === 'all' || record.overallSeverity === filterStatus),
       }))
       .filter(group => group.records.length > 0);
-  }, [filterStatus, timeRange]);
+  }, [filterStatus, timeRange, allHistory]);
 
   useEffect(() => {
     if (filteredHistory.length > 0) setExpandedDays({ [filteredHistory[0].dateISO]: true });
@@ -458,9 +470,21 @@ export default function HistoricoScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingTop: 16 }}>
-        {filteredHistory.map(group => (
-          <CollapsibleDayGroup key={group.dateISO} group={group} isExpanded={!!expandedDays[group.dateISO]} onToggle={() => toggleDay(group.dateISO)} />
-        ))}
+        {loading ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 }}>
+            <ActivityIndicator size="large" color="#00D4FF" />
+            <Text style={{ marginTop: 12, color: NavColors.textMuted, fontSize: 13, fontWeight: '600' }}>Carregando dados...</Text>
+          </View>
+        ) : filteredHistory.length > 0 ? (
+          filteredHistory.map(group => (
+            <CollapsibleDayGroup key={group.dateISO} group={group} isExpanded={!!expandedDays[group.dateISO]} onToggle={() => toggleDay(group.dateISO)} />
+          ))
+        ) : (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 }}>
+             <Ionicons name="documents-outline" size={48} color={NavColors.textMuted} style={{ opacity: 0.5 }} />
+             <Text style={{ marginTop: 12, color: NavColors.textMuted, fontSize: 14, textAlign: 'center' }}>Nenhum registro encontrado para este período.</Text>
+          </View>
+        )}
         <View style={{ height: 100 }} />
       </ScrollView>
     </View>

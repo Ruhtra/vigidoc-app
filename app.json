@@ -21,6 +21,7 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.ruh7r4.vigidocapp",
       "backgroundColor": "#02040E",
+      "usesCleartextTraffic": true,
       "softwareKeyboardLayoutMode": "resize",
       "navigationBar": {
         "backgroundColor": "#02040E",
