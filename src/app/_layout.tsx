@@ -89,7 +89,19 @@ export default function RootLayout() {
         router.replace('/(auth)/login');
       }
     } else {
-      if (inAuthGroup) {
+      // 3. Verificação de status do usuário (Persistence check)
+      const userStatus = useAuthStore.getState().session?.user?.status;
+      
+      if (userStatus === 'PENDING') {
+        // Se estiver pendente e não estiver na tela de pendência, redireciona pra lá
+        if (segments[1] !== 'pending-access') {
+          router.replace('/(auth)/pending-access');
+        }
+        return;
+      }
+
+      // Se estiver autenticado e ativo, e tentar entrar em rotas de auth (exceto pending-access), vai pro Home
+      if (inAuthGroup && segments[1] !== 'pending-access') {
         router.replace('/(tabs)');
       }
     }

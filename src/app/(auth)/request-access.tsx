@@ -22,6 +22,7 @@ import Reanimated, {
   useSharedValue,
   withSpring,
   withTiming,
+  withRepeat,
 } from 'react-native-reanimated';
 
 import { NavSpacing } from '@/constants/nav-theme';
@@ -216,6 +217,14 @@ function SuccessView({ email, onGoToLogin }: SuccessViewProps) {
     opacity: opacity.value,
   }));
 
+  const btnScale = useSharedValue(1);
+  const btnStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: btnScale.value }],
+    backgroundColor: withTiming(NavColors.cyan, { duration: 250 }),
+    shadowColor: withTiming(NavColors.cyan, { duration: 250 }),
+    borderRadius: 14,
+  }));
+
   return (
     <Reanimated.View entering={FadeIn.duration(400)} style={styles.successRoot}>
       <Reanimated.View style={[styles.successIconWrapper, iconStyle]}>
@@ -223,22 +232,62 @@ function SuccessView({ email, onGoToLogin }: SuccessViewProps) {
           <Ionicons name="checkmark-circle" size={72} color={NavColors.green} />
         </View>
       </Reanimated.View>
-      <Text style={[styles.successTitle, { color: NavColors.textPrimary }]}>Solicitação enviada! 🎉</Text>
+      <Text style={[styles.successTitle, { color: NavColors.textPrimary }]}>Solicitação efetuada! 🎉</Text>
       <Text style={[styles.successBody, { color: NavColors.textSecondary }]}>
-        Sua conta foi criada com sucesso e está{' '}
+        Seu pré-registro foi criado com sucesso e no momento está{' '}
         <Text style={[styles.successHighlight, { color: NavColors.cyan }]}>aguardando aprovação</Text>.
       </Text>
       <View style={[styles.successInfoCard, { backgroundColor: NavColors.cyanDim, borderColor: NavColors.cyan + '40' }]}>
-        <Ionicons name="information-circle-outline" size={18} color={NavColors.cyan} />
+        <Ionicons name="information-circle-outline" size={20} color={NavColors.cyan} style={{ marginTop: 2 }} />
         <Text style={[styles.successInfoText, { color: NavColors.textSecondary }]}>
-          Você já pode fazer login com{'\n'}
+          A sua solicitação foi recebida e você já pode voltar ao aplicativo.{'\n\n'}
+          Assim que um administrador aprovar, seu acesso estará liberado para o login com o e-mail:{'\n'}
           <Text style={{ color: NavColors.textPrimary, fontWeight: '700' }}>{email}</Text>
-          {'\n'}mas o acesso estará disponível assim que um administrador aprovar o seu cadastro.
         </Text>
       </View>
-      <Pressable style={[styles.successButton, { backgroundColor: NavColors.cyan, shadowColor: NavColors.cyan }]} onPress={onGoToLogin} testID="btn-go-to-login">
-        <Text style={[styles.successButtonText, { color: '#FFF' }]}>Ir para o Login →</Text>
-      </Pressable>
+      <Reanimated.View style={[btnStyle, { width: '100%', maxWidth: 360 }]}>
+        <Pressable 
+          onPressIn={() => { btnScale.value = withSpring(0.97, { damping: 15 }); }} 
+          onPressOut={() => { btnScale.value = withSpring(1, { damping: 15 }); }} 
+          onPress={onGoToLogin} 
+          style={styles.submitButton}
+        >
+          <Text style={[styles.successButtonText, { color: '#FFF' }]}>Voltar para o Login</Text>
+        </Pressable>
+      </Reanimated.View>
+    </Reanimated.View>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────── */
+/*  Loading State                                              */
+/* ─────────────────────────────────────────────────────────── */
+
+function LoadingView() {
+  const NavColors = useThemeColors();
+  const pulse = useSharedValue(1);
+
+  React.useEffect(() => {
+    pulse.value = withRepeat(withTiming(1.3, { duration: 1000 }), -1, true);
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulse.value }],
+    opacity: 1.5 - pulse.value,
+  }));
+
+  return (
+    <Reanimated.View entering={FadeIn.duration(400)} style={styles.successRoot}>
+      <View style={styles.loadingCircleContainer}>
+         <Reanimated.View style={[styles.loadingCirclePulse, { backgroundColor: NavColors.cyan }, animatedStyle]} />
+         <View style={[styles.loadingCircleInner, { backgroundColor: NavColors.cyan }]}>
+           <Ionicons name="cloud-upload-outline" size={36} color="#FFF" />
+         </View>
+      </View>
+      <Text style={[styles.successTitle, { color: NavColors.textPrimary }]}>Criando pré-registro...</Text>
+      <Text style={[styles.successBody, { color: NavColors.textSecondary }]}>
+        Por favor, <Text style={{fontWeight: '700', color: NavColors.textPrimary}}>não feche esta tela</Text>. Isso levará alguns segundos enquanto processamos os seus dados com segurança.
+      </Text>
     </Reanimated.View>
   );
 }
@@ -302,8 +351,8 @@ export default function RequestAccessScreen() {
   const submitScale = useSharedValue(1);
   const submitStyle = useAnimatedStyle(() => ({ 
     transform: [{ scale: submitScale.value }],
-    backgroundColor: NavColors.cyan,
-    shadowColor: NavColors.cyan,
+    backgroundColor: withTiming(NavColors.cyan, { duration: 250 }),
+    shadowColor: withTiming(NavColors.cyan, { duration: 250 }),
     borderRadius: 14,
   }));
 
@@ -336,6 +385,14 @@ export default function RequestAccessScreen() {
     );
   }
 
+  if (isLoading) {
+    return (
+      <View style={[styles.root, { backgroundColor: NavColors.bg0 }]}>
+        <LoadingView />
+      </View>
+    );
+  }
+
   return (
     <KeyboardAwareScrollView 
       ref={scrollRef}
@@ -359,7 +416,7 @@ export default function RequestAccessScreen() {
         <Logo size="lg" showTagline />
       </Reanimated.View>
 
-      <Reanimated.View entering={FadeInUp.duration(500).delay(100)} style={[styles.card, { backgroundColor: NavColors.bg1, borderColor: NavColors.borderSoft }]}>
+      <Reanimated.View entering={FadeInUp.duration(500).delay(100)} style={[styles.card, { backgroundColor: NavColors.bg1, borderColor: NavColors.borderSoft, shadowOpacity: isDark ? 0.3 : 0.1 }]}>
         <View style={styles.cardHeader}>
           <View style={styles.headerRow}>
             <Text style={[styles.cardTitle, { color: NavColors.textPrimary }]}>Solicitar Acesso</Text>
@@ -372,7 +429,12 @@ export default function RequestAccessScreen() {
 
         {apiError && (
           <Reanimated.View entering={FadeInDown.duration(200)} style={[styles.apiErrorBox, { backgroundColor: NavColors.danger + '15', borderColor: NavColors.danger + '40' }]}>
-            <Text style={[styles.apiErrorText, { color: NavColors.danger }]}>⚠ {apiError}</Text>
+            <Text style={[styles.apiErrorText, { color: NavColors.danger, fontWeight: 'bold' }]}>
+              ⚠ Ocorreu um erro: {apiError}
+            </Text>
+            <Text style={[styles.apiErrorText, { color: NavColors.danger, marginTop: 4 }]}>
+              Você pode tentar novamente agora ou mais tarde. A nossa equipe de desenvolvimento já está ciente desse erro e irá buscar o motivo da falha para corrigir.
+            </Text>
           </Reanimated.View>
         )}
 
@@ -422,9 +484,16 @@ export default function RequestAccessScreen() {
                 />
               )}
             />
-            <Pressable onPress={handleNextStep} style={[styles.submitButton, { backgroundColor: NavColors.cyan, marginTop: 4 }]}>
-              <Text style={[styles.submitText, { color: isDark ? NavColors.bg0 : '#FFF' }]}>Próximo Passo →</Text>
-            </Pressable>
+            <Reanimated.View style={[submitStyle, { marginTop: 4 }]}>
+              <Pressable 
+                onPressIn={() => { submitScale.value = withSpring(0.97, { damping: 15 }); }} 
+                onPressOut={() => { submitScale.value = withSpring(1, { damping: 15 }); }} 
+                onPress={handleNextStep} 
+                style={styles.submitButton}
+              >
+                <Text style={[styles.submitText, { color: isDark ? NavColors.bg0 : '#FFF' }]}>Próximo Passo →</Text>
+              </Pressable>
+            </Reanimated.View>
           </Reanimated.View>
         )}
 
@@ -460,7 +529,7 @@ export default function RequestAccessScreen() {
               </Pressable>
               <Reanimated.View style={[submitStyle, { flex: 2 }]}>
                 <Pressable onPressIn={() => { submitScale.value = withSpring(0.97, { damping: 15 }); }} onPressOut={() => { submitScale.value = withSpring(1, { damping: 15 }); }} onPress={handleSubmit(onSubmit)} disabled={isLoading} style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}>
-                  {isLoading ? <ActivityIndicator color={isDark ? NavColors.bg0 : '#FFF'} size="small" /> : <Text style={[styles.submitText, { color: isDark ? NavColors.bg0 : '#FFF' }]}>Concluir 🎉</Text>}
+                  <Text style={[styles.submitText, { color: isDark ? NavColors.bg0 : '#FFF' }]}>Concluir 🎉</Text>
                 </Pressable>
               </Reanimated.View>
             </View>
@@ -471,7 +540,6 @@ export default function RequestAccessScreen() {
         <View style={styles.compactFooterRow}>
           <Text style={[styles.footerText, { color: NavColors.textSecondary }]}>
             Já possui uma conta ativa?{' '}
-            
           </Text>
           <Text 
               onPress={() => router.back()} 
@@ -493,7 +561,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flexGrow: 1, paddingHorizontal: NavSpacing.md, paddingVertical: NavSpacing.xxl, justifyContent: 'center' },
   header: { alignItems: 'center', marginBottom: NavSpacing.lg },
-  card: { borderRadius: 24, borderWidth: 1, padding: NavSpacing.lg, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 8, gap: NavSpacing.md, minHeight: 460 },
+  card: { borderRadius: 24, borderWidth: 1, padding: NavSpacing.lg, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowRadius: 24, elevation: 8, minHeight: 460 },
   cardHeader: { marginBottom: NavSpacing.xs },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   cardTitle: { fontSize: 22, fontWeight: '700', letterSpacing: 0.2 },
@@ -517,8 +585,8 @@ const styles = StyleSheet.create({
   strengthBars: { flex: 1, flexDirection: 'row', gap: 4 },
   strengthBar: { height: 4, flex: 1, borderRadius: 2 },
   strengthLabel: { fontSize: 11, fontWeight: '700', minWidth: 40, textAlign: 'right' },
-  submitButton: { height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6 },
-  submitButtonDisabled: { opacity: 0.65 },
+  submitButton: { height: 52, alignItems: 'center', justifyContent: 'center', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6, width: '100%' },
+  submitButtonDisabled: { opacity: 0.7 },
   submitText: { fontSize: 16, fontWeight: '700', letterSpacing: 0.4 },
   step2Actions: { flexDirection: 'row', gap: NavSpacing.sm, marginTop: 4 },
   secondaryButton: { flex: 1, height: 52, borderRadius: 14, backgroundColor: 'transparent', borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
@@ -566,4 +634,7 @@ const styles = StyleSheet.create({
   successInfoText: { flex: 1, fontSize: 13, lineHeight: 20 },
   successButton: { width: '100%', maxWidth: 360, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6, marginTop: NavSpacing.sm },
   successButtonText: { fontSize: 16, fontWeight: '700', letterSpacing: 0.4 },
+  loadingCircleContainer: { width: 100, height: 100, alignItems: 'center', justifyContent: 'center', marginBottom: NavSpacing.lg },
+  loadingCirclePulse: { position: 'absolute', width: 80, height: 80, borderRadius: 40 },
+  loadingCircleInner: { width: 70, height: 70, borderRadius: 35, alignItems: 'center', justifyContent: 'center', elevation: 8, shadowColor: '#000', shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.3, shadowRadius: 8 },
 });

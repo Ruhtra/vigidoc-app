@@ -16,11 +16,19 @@ import { useAuth } from '@hooks/use-auth';
 import { useThemeColors } from '@hooks/use-theme-colors';
 import { NavSpacing } from '@/constants/nav-theme';
 import { ThemeToggle } from '@components/ui/theme-toggle';
+import { useAuthStore } from '@stores/auth.store';
+import { AuthService } from '@lib/services/auth.service';
+import { useRouter } from 'expo-router';
+import { ActivityIndicator } from 'react-native';
 
 export default function PendingAccessScreen() {
   const insets = useSafeAreaInsets();
   const { logout } = useAuth();
   const NavColors = useThemeColors();
+  const router = useRouter();
+  const { setSession } = useAuthStore();
+  
+  const [isChecking, setIsChecking] = React.useState(false);
 
   // ── Pulsing glow animation ──
   const glowOpacity = useSharedValue(0.3);
@@ -28,6 +36,31 @@ export default function PendingAccessScreen() {
   const dotOpacity1 = useSharedValue(0.3);
   const dotOpacity2 = useSharedValue(0.3);
   const dotOpacity3 = useSharedValue(0.3);
+
+  const checkStatus = React.useCallback(async (silent = false) => {
+    if (!silent) setIsChecking(true);
+    try {
+      const session = await AuthService.getCurrentSession();
+      if (session) {
+        setSession(session);
+        // Se mudou para active, o RootLayout vai redirecionar sozinho, 
+        // mas podemos forçar aqui para ser mais rápido.
+        if (session.user.status === 'ACTIVE') {
+          router.replace('/(tabs)');
+        }
+      }
+    } catch (error) {
+       console.error('[PendingAccess] Error checking status:', error);
+    } finally {
+      if (!silent) setIsChecking(false);
+    }
+  }, [setSession, router]);
+
+  // Polling automático a cada 60 segundos
+  useEffect(() => {
+    const timer = setInterval(() => checkStatus(true), 60000);
+    return () => clearInterval(timer);
+  }, [checkStatus]);
 
   useEffect(() => {
     glowOpacity.value = withRepeat(
@@ -147,12 +180,34 @@ export default function PendingAccessScreen() {
 
         {/* ── Loading dots ── */}
         <Reanimated.View entering={FadeInDown.duration(400).delay(400)} style={styles.dotsRow}>
-          <Text style={[styles.dotsLabel, { color: NavColors.textMuted }]}>Verificando seu status</Text>
+          <Text style={[styles.dotsLabel, { color: NavColors.textMuted }]}>Autoverificação ativa</Text>
           <View style={styles.dots}>
             <Reanimated.View style={[styles.dot, { backgroundColor: NavColors.warning }, dot1Style]} />
             <Reanimated.View style={[styles.dot, { backgroundColor: NavColors.warning }, dot2Style]} />
             <Reanimated.View style={[styles.dot, { backgroundColor: NavColors.warning }, dot3Style]} />
           </View>
+        </Reanimated.View>
+
+        {/* ── Action Button ── */}
+        <Reanimated.View entering={FadeInDown.duration(400).delay(450)} style={styles.actionContainer}>
+          <Pressable 
+            onPress={() => checkStatus()} 
+            disabled={isChecking}
+            style={({ pressed }) => [
+              styles.refreshButton, 
+              { backgroundColor: NavColors.bg3, borderColor: NavColors.borderBright },
+              pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] }
+            ]}
+          >
+            {isChecking ? (
+              <ActivityIndicator size="small" color={NavColors.cyan} />
+            ) : (
+              <>
+                <Ionicons name="refresh-outline" size={18} color={NavColors.cyan} />
+                <Text style={[styles.refreshButtonText, { color: NavColors.textPrimary }]}>Verificar Status Agora</Text>
+              </>
+            )}
+          </Pressable>
         </Reanimated.View>
 
         {/* ── Logout link ── */}
@@ -205,4 +260,20 @@ const styles = StyleSheet.create({
     right: 24,
     zIndex: 99,
   },
+  actionContainer: { width: '100%', marginTop: NavSpacing.sm },
+  refreshButton: { 
+    height: 54, 
+    borderRadius: 16, 
+    borderWidth: 1, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3
+  },
+  refreshButtonText: { fontSize: 15, fontWeight: '700', letterSpacing: 0.2 },
 });

@@ -44,11 +44,10 @@ export const AuthService = {
     payload: RegisterPayloadType
   ): Promise<{ error: { message: string } | null }> => {
     try {
-      // Usamos o api (axios) diretamente pois o signUp.email não expõe
-      // campos customizados (data.*) no tipo do Better Auth client.
-      // O endpoint POST /api/auth/sign-up/email aceita esses campos no body.
+      // Usamos o api (axios) em nossa rota customizada de signup para suportar perfeitamente
+      // CPF, telefone e criação vinculada de perfil.
       const { api } = await import('@lib/api/client');
-      await api.post('/api/auth/sign-up/email', {
+      await api.post('/api/novo/users/signup', {
         name: payload.name,
         email: payload.email,
         password: payload.password,
@@ -66,12 +65,19 @@ export const AuthService = {
   },
 
   /**
-   * Obtém a sessão atual do usuário (GET /api/auth/get-session)
+   * Obtém a sessão atual do usuário garantindo dados frescos do banco
+   * (Contorna cache de JWT do Better-Auth para refletir status PENDING -> ACTIVE)
    */
   getCurrentSession: async (): Promise<AuthSessionType> => {
-    const result = await getSession();
-    if (result.error || !result.data) return null;
-    return result.data as unknown as AuthSessionType;
+    try {
+      const { api } = await import('@lib/api/client');
+      // Adicionamos um timestamp para evitar qualquer cache de rede do device
+      const { data } = await api.get(`/api/novo/users/me?t=${Date.now()}`);
+      return data as AuthSessionType;
+    } catch (err) {
+      console.warn('[AuthService] Failed to get fresh session:', err);
+      return null;
+    }
   },
 
   /**

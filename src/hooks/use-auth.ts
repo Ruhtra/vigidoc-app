@@ -38,7 +38,7 @@ export function useAuth(): UseAuthType {
       setSession(data);
 
       // Usuário pendente: redireciona para tela de acesso pendente
-      if (data?.user?.status === 'pending') {
+      if (data?.user?.status === 'PENDING') {
         router.replace('/(auth)/pending-access');
         return;
       }

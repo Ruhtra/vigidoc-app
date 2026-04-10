@@ -35,8 +35,7 @@ export const registerSchema = z
     birthDate: z.string().min(1, 'Informe sua data de nascimento'),
     phone: z
       .string()
-      .min(10, 'Telefone inválido')
-      .regex(/^\d+$/, 'Apenas números'),
+      .min(10, 'Telefone inválido'),
     cpf: z
       .string()
       .min(11, 'CPF inválido')
