@@ -40,6 +40,7 @@ type TabItemProps = {
   onLongPress: () => void;
   onLayout?: (width: number) => void;
   colors: ThemeColors;
+  disabled?: boolean;
 };
 
 function TabItem({
@@ -51,6 +52,7 @@ function TabItem({
   onLongPress,
   onLayout,
   colors,
+  disabled,
 }: TabItemProps) {
   const styles = useStyles(colors);
   const scale = useSharedValue(1);
@@ -76,8 +78,9 @@ function TabItem({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       accessibilityRole="tab"
-      accessibilityState={{ selected: isFocused }}
+      accessibilityState={{ selected: isFocused, disabled }}
       accessibilityLabel={label}
+      disabled={disabled}
       onLayout={(e) => {
         if (onLayout) onLayout(e.nativeEvent.layout.width);
       }}
@@ -88,12 +91,18 @@ function TabItem({
           name={isFocused ? iconActive : icon}
           size={22}
           color={isFocused ? colors.cyan : colors.textMuted}
+          style={disabled && { opacity: 0.3 }}
         />
       </Reanimated.View>
 
       {/* Label */}
       <Text
-        style={[styles.tabLabel, { color: colors.textMuted }, isFocused && { color: colors.cyan, fontWeight: '700' }]}
+        style={[
+          styles.tabLabel, 
+          { color: colors.textMuted }, 
+          isFocused && { color: colors.cyan, fontWeight: '700' },
+          disabled && { opacity: 0.3 }
+        ]}
         numberOfLines={1}
       >
         {label}
@@ -230,10 +239,11 @@ export function CustomTabBar({
                 icon={meta.icon as any}
                 iconActive={meta.iconActive as any}
                 isFocused={isFocused}
-                onPress={handlePress}
-                onLongPress={handleLongPress}
+                onPress={meta.disabled ? undefined : handlePress}
+                onLongPress={meta.disabled ? undefined : handleLongPress}
                 onLayout={index === 0 ? setTabWidth : undefined}
                 colors={NavColors}
+                disabled={meta.disabled}
               />
             );
           })}

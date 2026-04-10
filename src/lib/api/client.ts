@@ -5,7 +5,7 @@ import * as SecureStore from "expo-secure-store";
 const SESSION_KEY = "vigidoc_session";
 
 // export const API_BASE_URL = "https://medic.vigidoc.org";
-export const API_BASE_URL = "http://10.61.213.33:3000";
+export const API_BASE_URL = "http://10.150.55.33:3000";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,

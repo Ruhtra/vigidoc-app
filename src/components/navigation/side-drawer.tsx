@@ -56,8 +56,9 @@ function DrawerItem({ route, onPress, colors }: DrawerItemProps) {
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={route.disabled ? undefined : onPress}
       onPressIn={() => {
+        if (route.disabled) return;
         scale.value = withSpring(0.97, { damping: 12 });
         bgOpacity.value = withTiming(1, { duration: 120 });
       }}
@@ -67,8 +68,9 @@ function DrawerItem({ route, onPress, colors }: DrawerItemProps) {
       }}
       accessibilityRole="menuitem"
       accessibilityLabel={route.label}
+      disabled={route.disabled}
     >
-      <Reanimated.View style={[styles.drawerItem, animStyle]}>
+      <Reanimated.View style={[styles.drawerItem, animStyle, route.disabled && { opacity: 0.3 }]}>
         {/* Icon container with colored glow */}
         <View
           style={[

@@ -10,15 +10,19 @@ import { View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { getThemeColors } from '@constants/nav-theme';
+import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { useAuthStore } from '@stores/auth.store';
 import { VersionService } from '@lib/services/version.service';
 import { UpdateRequiredScreen } from '@components/update-required';
 import { useThemeStore } from '@stores/theme.store';
+import { MeasurementSyncEngine } from '@components/measurement-sync-engine';
+
+const queryClient = new QueryClient();
 
 preventAutoHideAsync();
 
-export default function RootLayout() {
+function RootLayoutContent() {
   const { theme: storeTheme } = useThemeStore();
   const NavColors = useMemo(() => getThemeColors(storeTheme), [storeTheme]);
   const isDark = storeTheme === 'dark';
@@ -43,44 +47,35 @@ export default function RootLayout() {
 
   const { isAuthenticated, isLoading: isAuthLoading, hydrateSession } = useAuthStore();
   
-  // Estados para controle de versão
-  const [isVersionChecking, setIsVersionChecking] = useState(true);
-  const [isUpdateRequired, setIsUpdateRequired] = useState(false);
-  const [storeUrl, setStoreUrl] = useState('');
+  const { data: appConfig, isLoading: isVersionChecking } = useQuery({
+    queryKey: ['appConfig'],
+    queryFn: async () => {
+      const config = await VersionService.getConfig();
+      const needsUpdate = await VersionService.checkUpdateRequired(config.min_version);
+      return { config, needsUpdate };
+    },
+    staleTime: Infinity, 
+  });
 
-  // 1. Verifica Versão e Hidrata Sessão
-  useEffect(() => {
-    async function initialize() {
-      try {
-        // Validação de Versão (Paralelo ao Auth para performance)
-        const versionConfig = await VersionService.getConfig();
-        const needsUpdate = await VersionService.checkUpdateRequired(versionConfig.min_version);
-        
-        setIsUpdateRequired(needsUpdate);
-        setStoreUrl(versionConfig.store_url);
-        
-        // Hidratação da Sessão
-        await hydrateSession();
-      } catch (error) {
-        console.error('[RootLayout] Init Error:', error);
-      } finally {
-        setIsVersionChecking(false);
-      }
-    }
-    initialize();
-  }, [hydrateSession]);
+  const { isLoading: isHydrating } = useQuery({
+    queryKey: ['sessionHydrate'],
+    queryFn: async () => {
+      await hydrateSession();
+      return true;
+    },
+    staleTime: Infinity,
+  });
+
+  const isUpdateRequired = appConfig?.needsUpdate || false;
+  const storeUrl = appConfig?.config?.store_url || '';
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(NavColors.bg1);
   }, [NavColors]);
 
-  // 2. Proteção de rotas: redireciona baseado no estado de autenticação
   useEffect(() => {
-    // Se precisar atualizar, não faz redirect de auth
     if (isUpdateRequired) return;
-
-    // Aguarda carregar tudo e roteador estar pronto
-    if (!navigationState?.key || isAuthLoading || isVersionChecking) return;
+    if (!navigationState?.key || isAuthLoading || isVersionChecking || isHydrating) return;
 
     const inAuthGroup = segments[0] === '(auth)';
 
@@ -89,33 +84,28 @@ export default function RootLayout() {
         router.replace('/(auth)/login');
       }
     } else {
-      // 3. Verificação de status do usuário (Persistence check)
       const userStatus = useAuthStore.getState().session?.user?.status;
       
       if (userStatus === 'PENDING') {
-        // Se estiver pendente e não estiver na tela de pendência, redireciona pra lá
         if (segments[1] !== 'pending-access') {
           router.replace('/(auth)/pending-access');
         }
         return;
       }
 
-      // Se estiver autenticado e ativo, e tentar entrar em rotas de auth (exceto pending-access), vai pro Home
       if (inAuthGroup && segments[1] !== 'pending-access') {
         router.replace('/(tabs)');
       }
     }
-  }, [isAuthenticated, isAuthLoading, isVersionChecking, isUpdateRequired, segments, router, navigationState?.key]);
+  }, [isAuthenticated, isAuthLoading, isVersionChecking, isHydrating, isUpdateRequired, segments, router, navigationState?.key]);
 
-  // 3. Esconde a splash screen após o estado INICIAL estar resolvido
   useEffect(() => {
-    if (!isAuthLoading && !isVersionChecking) {
+    if (!isAuthLoading && !isVersionChecking && !isHydrating) {
       hideAsync();
     }
-  }, [isAuthLoading, isVersionChecking]);
+  }, [isAuthLoading, isVersionChecking, isHydrating]);
 
-  // Se estiver verificando a versão ou autenticando na abertura fria
-  if (isVersionChecking || (isAuthLoading && !isAuthenticated)) {
+  if (isVersionChecking || isHydrating || (isAuthLoading && !isAuthenticated)) {
     return (
       <View style={{ flex: 1, backgroundColor: NavColors.bg1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator color={NavColors.cyan} size="large" />
@@ -123,7 +113,6 @@ export default function RootLayout() {
     );
   }
 
-  // SE FOR OBRIGATÓRIO ATUALIZAR, RENDERIZA APENAS A TELA DE BLOQUEIO
   if (isUpdateRequired) {
     return (
       <ThemeProvider value={VigiDocTheme}>
@@ -136,6 +125,7 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={VigiDocTheme}>
       <StatusBar style={isDark ? "light" : "dark"} translucent backgroundColor="transparent" />
+      <MeasurementSyncEngine />
       <View style={{ flex: 1, backgroundColor: NavColors.bg1 }}>
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: NavColors.bg1 } }}>
           <Stack.Screen name="(auth)" />
@@ -153,3 +143,10 @@ export default function RootLayout() {
   );
 }
 
+export default function RootLayout() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <RootLayoutContent />
+    </QueryClientProvider>
+  );
+}

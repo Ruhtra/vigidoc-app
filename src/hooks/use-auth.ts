@@ -1,61 +1,42 @@
-import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
-
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AuthService } from '@lib/services/auth.service';
 import { useAuthStore } from '@stores/auth.store';
 
-type UseAuthType = {
-  isLoading: boolean;
-  error: string | null;
-  login: (email: string, password: string, remember: boolean) => Promise<void>;
-  logout: () => Promise<void>;
-};
-
-export function useAuth(): UseAuthType {
-  const router = useRouter();
+export function useAuth() {
   const { setSession, clearSession } = useAuthStore();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const login = useCallback(
-    async (email: string, password: string, remember: boolean) => {
-      setIsLoading(true);
-      setError(null);
-
-      const { data, error: authError } = await AuthService.signInEmail(
-        email,
-        password,
-        remember
-      );
-
-      setIsLoading(false);
-
-      if (authError || !data) {
-        setError(authError?.message ?? 'Erro ao fazer login. Tente novamente.');
-        return;
-      }
-
-      setSession(data);
-
-      // Usuário pendente: redireciona para tela de acesso pendente
-      if (data?.user?.status === 'PENDING') {
-        router.replace('/(auth)/pending-access');
-        return;
-      }
-
-      // Navega para a raiz protegida da aplicação
-      router.replace('/(tabs)');
+  // Mutation para Login
+  const loginMutation = useMutation({
+    mutationFn: async ({ email, password, remember }: any) => {
+      const { data, error } = await AuthService.signInEmail(email, password, remember);
+      if (error) throw new Error(error.message ?? 'Erro ao fazer login. Tente novamente.');
+      return data;
     },
-    [setSession, router]
-  );
+    onSuccess: (data) => {
+      if (data) {
+        setSession(data);
+      }
+    },
+  });
 
-  const logout = useCallback(async () => {
-    setIsLoading(true);
-    await AuthService.signOut();
-    clearSession();
-    setIsLoading(false);
-    router.replace('/(auth)/login');
-  }, [clearSession, router]);
+  // Mutation para Logout
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await AuthService.signOut();
+    },
+    onSuccess: () => {
+      clearSession();
+      queryClient.clear(); // Limpa todo o cache ao sair
+    },
+  });
 
-  return { isLoading, error, login, logout };
+  return {
+    login: loginMutation.mutateAsync,
+    isLoggingIn: loginMutation.isPending,
+    loginError: (loginMutation.error as Error)?.message || null,
+    
+    logout: logoutMutation.mutateAsync,
+    isLoggingOut: logoutMutation.isPending,
+  };
 }

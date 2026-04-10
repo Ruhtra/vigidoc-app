@@ -1,279 +1,92 @@
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Reanimated, {
-  FadeIn,
-  FadeInDown,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { useAuth } from '@hooks/use-auth';
-import { useThemeColors } from '@hooks/use-theme-colors';
-import { NavSpacing } from '@/constants/nav-theme';
-import { ThemeToggle } from '@components/ui/theme-toggle';
-import { useAuthStore } from '@stores/auth.store';
-import { AuthService } from '@lib/services/auth.service';
 import { useRouter } from 'expo-router';
-import { ActivityIndicator } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuthStore } from '@stores/auth.store';
+import { useThemeColors } from '@hooks/use-theme-colors';
+import { useQuery } from '@tanstack/react-query';
+import { AuthService } from '@lib/services/auth.service';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 
 export default function PendingAccessScreen() {
-  const insets = useSafeAreaInsets();
-  const { logout } = useAuth();
   const NavColors = useThemeColors();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { setSession } = useAuthStore();
-  
-  const [isChecking, setIsChecking] = React.useState(false);
+  const { clearSession, setSession } = useAuthStore();
 
-  // ── Pulsing glow animation ──
-  const glowOpacity = useSharedValue(0.3);
-  const iconScale = useSharedValue(1);
-  const dotOpacity1 = useSharedValue(0.3);
-  const dotOpacity2 = useSharedValue(0.3);
-  const dotOpacity3 = useSharedValue(0.3);
+  const { data: sessionData } = useQuery({
+    queryKey: ['sessionStatus'],
+    queryFn: async () => {
+      const { data } = await AuthService.getCurrentSession();
+      return data;
+    },
+    refetchInterval: 15000, 
+  });
 
-  const checkStatus = React.useCallback(async (silent = false) => {
-    if (!silent) setIsChecking(true);
-    try {
-      const session = await AuthService.getCurrentSession();
-      if (session) {
-        setSession(session);
-        // Se mudou para active, o RootLayout vai redirecionar sozinho, 
-        // mas podemos forçar aqui para ser mais rápido.
-        if (session.user.status === 'ACTIVE') {
-          router.replace('/(tabs)');
-        }
-      }
-    } catch (error) {
-       console.error('[PendingAccess] Error checking status:', error);
-    } finally {
-      if (!silent) setIsChecking(false);
+  React.useEffect(() => {
+    if (sessionData?.user?.status === 'ACTIVE') {
+      setSession(sessionData);
+      router.replace('/(tabs)');
     }
-  }, [setSession, router]);
+  }, [sessionData]);
 
-  // Polling automático a cada 60 segundos
-  useEffect(() => {
-    const timer = setInterval(() => checkStatus(true), 60000);
-    return () => clearInterval(timer);
-  }, [checkStatus]);
-
-  useEffect(() => {
-    glowOpacity.value = withRepeat(
-      withSequence(withTiming(0.7, { duration: 1800 }), withTiming(0.25, { duration: 1800 })),
-      -1
-    );
-
-    iconScale.value = withRepeat(
-      withSequence(withTiming(1.04, { duration: 1600 }), withTiming(1, { duration: 1600 })),
-      -1
-    );
-
-    const delay = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
-    const animate = async () => {
-      while (true) {
-        dotOpacity1.value = withTiming(1, { duration: 300 });
-        await delay(300);
-        dotOpacity2.value = withTiming(1, { duration: 300 });
-        await delay(300);
-        dotOpacity3.value = withTiming(1, { duration: 300 });
-        await delay(500);
-        dotOpacity1.value = withTiming(0.3, { duration: 200 });
-        dotOpacity2.value = withTiming(0.3, { duration: 200 });
-        dotOpacity3.value = withTiming(0.3, { duration: 200 });
-        await delay(400);
-      }
-    };
-    animate();
-  }, [dotOpacity1, dotOpacity2, dotOpacity3, glowOpacity, iconScale]);
-
-  const glowStyle = useAnimatedStyle(() => ({ opacity: glowOpacity.value }));
-  const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: iconScale.value }] }));
-  const dot1Style = useAnimatedStyle(() => ({ opacity: dotOpacity1.value }));
-  const dot2Style = useAnimatedStyle(() => ({ opacity: dotOpacity2.value }));
-  const dot3Style = useAnimatedStyle(() => ({ opacity: dotOpacity3.value }));
+  const handleLogout = async () => {
+    await AuthService.signOut();
+    clearSession();
+    router.replace('/(auth)/login');
+  };
 
   return (
-    <View style={[styles.root, { backgroundColor: NavColors.bg0, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      {/* Background grid pattern */}
-      <View style={styles.gridBg} pointerEvents="none">
-        {Array.from({ length: 8 }).map((_, row) =>
-          Array.from({ length: 5 }).map((_, col) => (
-            <View
-              key={`${row}-${col}`}
-              style={[
-                styles.gridCell,
-                { opacity: 0.02, borderColor: NavColors.warning },
-              ]}
-            />
-          ))
-        )}
-      </View>
-
-      <View style={[styles.cornerTL, { borderColor: NavColors.warning + '60' }]} />
-      <View style={[styles.cornerBR, { borderColor: NavColors.warning + '60' }]} />
-
-      <View style={styles.topRightActions}>
-        <ThemeToggle />
-      </View>
-
-      <Reanimated.View entering={FadeIn.duration(500)} style={styles.content}>
-        {/* ── Icon ── */}
-        <View style={styles.iconWrapper}>
-          <Reanimated.View
-            style={[styles.iconGlow, { backgroundColor: NavColors.warning }, glowStyle]}
-          />
-          <View style={[styles.iconRingOuter, { backgroundColor: NavColors.warning + '15', borderColor: NavColors.warning + '30' }]}>
-            <Reanimated.View style={[styles.iconInner, iconStyle]}>
-              <Ionicons name="time-outline" size={52} color={NavColors.warning} />
-            </Reanimated.View>
+    <View style={[styles.container, { backgroundColor: NavColors.bg0 }]}>
+      <LinearGradient colors={[NavColors.bg1, NavColors.bg0]} style={StyleSheet.absoluteFill} />
+      
+      <View style={[styles.content, { paddingTop: insets.top + 40 }]}>
+        <Animated.View entering={FadeInDown.delay(200)} style={styles.iconContainer}>
+          <View style={[styles.iconBg, { backgroundColor: `${NavColors.cyan}15` }]}>
+            <Ionicons name="time" size={64} color={NavColors.cyan} />
           </View>
-        </View>
+        </Animated.View>
 
-        {/* ── Badge ── */}
-        <Reanimated.View entering={FadeInDown.duration(400).delay(100)} style={[styles.badge, { backgroundColor: NavColors.warning + '15', borderColor: NavColors.warning + '30' }]}>
-          <View style={[styles.badgeDot, { backgroundColor: NavColors.warning }]} />
-          <Text style={[styles.badgeText, { color: NavColors.warning }]}>AGUARDANDO APROVAÇÃO</Text>
-        </Reanimated.View>
-
-        {/* ── Title ── */}
-        <Reanimated.View entering={FadeInDown.duration(400).delay(200)} style={styles.textBlock}>
+        <Animated.View entering={FadeInDown.delay(400)} style={styles.textContainer}>
           <Text style={[styles.title, { color: NavColors.textPrimary }]}>Acesso Pendente</Text>
-          <Text style={[styles.subtitle, { color: NavColors.textSecondary }]}>
-            Sua conta foi criada com sucesso! Estamos aguardando a{' '}
-            <Text style={{ color: NavColors.cyan, fontWeight: '700' }}>
-              liberação do seu acesso
-            </Text>{' '}
-            por um administrador.
+          <Text style={[styles.description, { color: NavColors.textMuted }]}>
+            Sua solicitação de cadastro foi recebida e está aguardando aprovação administrativa.
           </Text>
-        </Reanimated.View>
+        </Animated.View>
 
-        {/* ── Info cards ── */}
-        <Reanimated.View
-          entering={FadeInDown.duration(400).delay(300)}
-          style={styles.infoCards}
-        >
-          <View style={[styles.infoCard, { backgroundColor: NavColors.bg1, borderColor: NavColors.border }]}>
-            <Ionicons name="notifications-outline" size={20} color={NavColors.cyan} />
-            <View style={styles.infoCardText}>
-              <Text style={[styles.infoCardTitle, { color: NavColors.textPrimary }]}>Notificação automática</Text>
-              <Text style={[styles.infoCardSub, { color: NavColors.textMuted }]}>
-                Você será notificado assim que seu acesso for liberado. O app abrirá automaticamente.
-              </Text>
-            </View>
+        <Animated.View entering={FadeInUp.delay(600)} style={styles.card}>
+          <View style={[styles.infoCard, { backgroundColor: NavColors.bg1, borderColor: NavColors.borderSoft }]}>
+            <Ionicons name="information-circle-outline" size={24} color={NavColors.cyan} />
+            <Text style={[styles.infoText, { color: NavColors.textSecondary }]}>
+              Você receberá acesso total assim que seu perfil for validado.
+            </Text>
           </View>
+        </Animated.View>
 
-          <View style={[styles.infoCard, { backgroundColor: NavColors.bg1, borderColor: NavColors.border }]}>
-            <Ionicons name="shield-checkmark-outline" size={20} color={NavColors.cyan} />
-            <View style={styles.infoCardText}>
-              <Text style={[styles.infoCardTitle, { color: NavColors.textPrimary }]}>Seus dados estão seguros</Text>
-              <Text style={[styles.infoCardSub, { color: NavColors.textMuted }]}>
-                A verificação manual garante que apenas profissionais autorizados acessem a plataforma.
-              </Text>
-            </View>
-          </View>
-        </Reanimated.View>
-
-        {/* ── Loading dots ── */}
-        <Reanimated.View entering={FadeInDown.duration(400).delay(400)} style={styles.dotsRow}>
-          <Text style={[styles.dotsLabel, { color: NavColors.textMuted }]}>Autoverificação ativa</Text>
-          <View style={styles.dots}>
-            <Reanimated.View style={[styles.dot, { backgroundColor: NavColors.warning }, dot1Style]} />
-            <Reanimated.View style={[styles.dot, { backgroundColor: NavColors.warning }, dot2Style]} />
-            <Reanimated.View style={[styles.dot, { backgroundColor: NavColors.warning }, dot3Style]} />
-          </View>
-        </Reanimated.View>
-
-        {/* ── Action Button ── */}
-        <Reanimated.View entering={FadeInDown.duration(400).delay(450)} style={styles.actionContainer}>
-          <Pressable 
-            onPress={() => checkStatus()} 
-            disabled={isChecking}
-            style={({ pressed }) => [
-              styles.refreshButton, 
-              { backgroundColor: NavColors.bg3, borderColor: NavColors.borderBright },
-              pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] }
-            ]}
-          >
-            {isChecking ? (
-              <ActivityIndicator size="small" color={NavColors.cyan} />
-            ) : (
-              <>
-                <Ionicons name="refresh-outline" size={18} color={NavColors.cyan} />
-                <Text style={[styles.refreshButtonText, { color: NavColors.textPrimary }]}>Verificar Status Agora</Text>
-              </>
-            )}
-          </Pressable>
-        </Reanimated.View>
-
-        {/* ── Logout link ── */}
-        <Reanimated.View entering={FadeInDown.duration(400).delay(500)}>
-          <Pressable
-            onPress={logout}
-            style={styles.logoutButton}
-            testID="btn-logout-pending"
-          >
-            <Ionicons name="log-out-outline" size={15} color={NavColors.textMuted} />
-            <Text style={[styles.logoutText, { color: NavColors.textMuted }]}>Sair e usar outra conta</Text>
-          </Pressable>
-        </Reanimated.View>
-      </Reanimated.View>
+        <View style={styles.footer}>
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+            <Text style={[styles.logoutText, { color: NavColors.textMuted }]}>Sair da conta</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  gridBg: { ...StyleSheet.absoluteFillObject, flexDirection: 'row', flexWrap: 'wrap' },
-  gridCell: { width: '20%', height: 80, borderWidth: 0.5 },
-  cornerTL: { position: 'absolute', top: 64, left: 24, width: 28, height: 28, borderTopWidth: 2, borderLeftWidth: 2, borderRadius: 4 },
-  cornerBR: { position: 'absolute', bottom: 80, right: 24, width: 28, height: 28, borderBottomWidth: 2, borderRightWidth: 2, borderRadius: 4 },
-  content: { alignItems: 'center', paddingHorizontal: NavSpacing.lg, gap: NavSpacing.lg, maxWidth: 360, width: '100%' },
-  iconWrapper: { width: 140, height: 140, alignItems: 'center', justifyContent: 'center', marginBottom: NavSpacing.sm },
-  iconGlow: { position: 'absolute', width: 100, height: 100, borderRadius: 50, opacity: 0.08 },
-  iconRingOuter: { width: 110, height: 110, borderRadius: 55, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  iconInner: { alignItems: 'center', justifyContent: 'center' },
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999 },
-  badgeDot: { width: 7, height: 7, borderRadius: 4 },
-  badgeText: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
-  textBlock: { alignItems: 'center', gap: NavSpacing.sm },
-  title: { fontSize: 26, fontWeight: '800', textAlign: 'center', letterSpacing: 0.3 },
-  subtitle: { fontSize: 15, textAlign: 'center', lineHeight: 23 },
-  infoCards: { width: '100%', gap: NavSpacing.sm },
-  infoCard: { flexDirection: 'row', alignItems: 'flex-start', gap: NavSpacing.sm, borderWidth: 1, borderRadius: 16, padding: NavSpacing.md },
-  infoCardText: { flex: 1, gap: 4 },
-  infoCardTitle: { fontSize: 14, fontWeight: '700' },
-  infoCardSub: { fontSize: 13, lineHeight: 19 },
-  dotsRow: { alignItems: 'center', gap: NavSpacing.xs },
-  dotsLabel: { fontSize: 12, letterSpacing: 0.3 },
-  dots: { flexDirection: 'row', gap: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  logoutButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: NavSpacing.sm, paddingHorizontal: NavSpacing.md },
-  logoutText: { fontSize: 13, fontWeight: '500' },
-  topRightActions: {
-    position: 'absolute',
-    top: 60, // Sits comfortably below system bar
-    right: 24,
-    zIndex: 99,
-  },
-  actionContainer: { width: '100%', marginTop: NavSpacing.sm },
-  refreshButton: { 
-    height: 54, 
-    borderRadius: 16, 
-    borderWidth: 1, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3
-  },
-  refreshButtonText: { fontSize: 15, fontWeight: '700', letterSpacing: 0.2 },
+  container: { flex: 1 },
+  content: { flex: 1, paddingHorizontal: 32, alignItems: 'center' },
+  iconContainer: { marginBottom: 32 },
+  iconBg: { width: 120, height: 120, borderRadius: 60, alignItems: 'center', justifyContent: 'center' },
+  textContainer: { alignItems: 'center', marginBottom: 40 },
+  title: { fontSize: 28, fontWeight: '900', marginBottom: 16, textAlign: 'center' },
+  description: { fontSize: 16, textAlign: 'center', lineHeight: 24 },
+  card: { width: '100%' },
+  infoCard: { flexDirection: 'row', padding: 20, borderRadius: 20, borderWidth: 1, alignItems: 'center', gap: 16 },
+  infoText: { flex: 1, fontSize: 14, fontWeight: '500', lineHeight: 20 },
+  footer: { marginTop: 'auto', marginBottom: 40 },
+  logoutButton: { padding: 12 },
+  logoutText: { fontSize: 14, fontWeight: '700', textDecorationLine: 'underline' }
 });

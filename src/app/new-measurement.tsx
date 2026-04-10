@@ -14,6 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { 
@@ -118,6 +119,15 @@ export default function NewMeasurementScreen() {
   const insets = useSafeAreaInsets();
   const measurementState = useMeasurementStore();
   const NavColors = useThemeColors();
+  const queryClient = useQueryClient();
+
+  // The submission function used by both manual finalize and sync engine
+  const submitFn = async (payload: any) => {
+    const { vitalsService } = await import('@lib/services/vitals.service');
+    await vitalsService.submitRecord(payload);
+    queryClient.invalidateQueries({ queryKey: ['vitalsHistory'] });
+    queryClient.invalidateQueries({ queryKey: ['healthStreak'] });
+  };
 
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [val1, setVal1] = useState('');
@@ -152,8 +162,8 @@ export default function NewMeasurementScreen() {
         const elapsed = Date.now() - measurementState.startTime;
         const remaining = 10 * 60 * 1000 - elapsed;
         if (remaining <= 0) {
-          measurementState.finalizeMeasurement();
-          router.back();
+          // Auto-finalize: submit to API then navigate away
+          measurementState.finalizeAndSync(submitFn).then(() => router.back());
         } else {
           const mins = Math.floor(remaining / 60000);
           const secs = Math.floor((remaining % 60000) / 1000);
@@ -176,36 +186,26 @@ export default function NewMeasurementScreen() {
     setActiveModal(null);
     setVal1('');
     setVal2('');
-    
-    if (measurementState.getMeasurementCount() >= 5) {
-       if (measurementState.getMeasurementCount() === 5 && !measurementState.measurements[id as keyof typeof measurementState.measurements]) {
-           setTimeout(() => {
-              measurementState.finalizeMeasurement();
-              router.back();
-           }, 800);
-       }
-    }
   };
 
   const handleRegistrar = () => {
+    const count = measurementState.getMeasurementCount();
+    const doFinalize = () => {
+      measurementState.finalizeAndSync(submitFn);
+      router.back();
+    };
+
     if (count < 6) {
       Alert.alert(
         'Medição Incompleta',
         `Você realizou ${count} de 6 aferições. Deseja realmente finalizar o registro com dados faltando?`,
         [
           { text: 'Continuar Medindo', style: 'cancel' },
-          { 
-            text: 'Sim, Finalizar', 
-            onPress: () => {
-              measurementState.finalizeMeasurement();
-              router.back();
-            }
-          },
+          { text: 'Sim, Finalizar', onPress: doFinalize },
         ]
       );
     } else {
-      measurementState.finalizeMeasurement();
-      router.back();
+      doFinalize();
     }
   };
 

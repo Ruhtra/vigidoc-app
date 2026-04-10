@@ -12,6 +12,7 @@ export type AppRouteConfig = {
   colorKey: keyof ThemeColors;
   showInTabBar?: boolean;
   showInDrawer?: boolean;
+  disabled?: boolean;
 };
 
 /**
@@ -48,6 +49,7 @@ export const APP_ROUTES: AppRouteConfig[] = [
     colorKey: 'warning',
     showInTabBar: true,
     showInDrawer: true,
+    disabled: true,
   },
   {
     name: 'meu-medico',
@@ -78,5 +80,6 @@ export const APP_ROUTES: AppRouteConfig[] = [
     colorKey: 'cyan',
     showInTabBar: false,
     showInDrawer: true,
+    disabled: true,
   },
 ];
