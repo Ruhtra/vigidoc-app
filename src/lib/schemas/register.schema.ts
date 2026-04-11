@@ -21,7 +21,8 @@ export const registerSchema = z
     name: z
       .string()
       .min(3, 'Nome deve ter pelo menos 3 caracteres')
-      .max(100, 'Nome muito longo'),
+      .max(100, 'Nome muito longo')
+      .regex(/^[a-zA-ZÀ-ÿ]+\s[a-zA-ZÀ-ÿ]+(?!.*?\s{2}).*$/, 'Informe nome e sobrenome'),
     email: z
       .string()
       .min(1, 'Informe seu e-mail')

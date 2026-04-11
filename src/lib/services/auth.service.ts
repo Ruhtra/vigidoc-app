@@ -42,7 +42,7 @@ export const AuthService = {
    */
   register: async (
     payload: RegisterPayloadType
-  ): Promise<{ error: { message: string } | null }> => {
+  ): Promise<{ error: { message: string; field?: keyof RegisterPayloadType } | null }> => {
     try {
       // Usamos o api (axios) em nossa rota customizada de signup para suportar perfeitamente
       // CPF, telefone e criação vinculada de perfil.
@@ -57,10 +57,19 @@ export const AuthService = {
       });
       return { error: null };
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        'Não foi possível criar sua conta.';
-      return { error: { message: msg } };
+      const responseData = (err as any)?.response?.data;
+      const msg = responseData?.message ?? responseData?.error ?? 'Não foi possível criar sua conta. Tente novamente.';
+      let field: keyof RegisterPayloadType | undefined = responseData?.field;
+
+      // Mapa de mensagens de erro comuns da API para campos específicos caso a API não envie o field explicitamente
+      if (!field) {
+        const lowerMsg = msg.toLowerCase();
+        if (lowerMsg.includes('e-mail') || lowerMsg.includes('email') || lowerMsg.includes('already exists')) field = 'email';
+        else if (lowerMsg.includes('cpf')) field = 'cpf';
+        else if (lowerMsg.includes('telefone') || lowerMsg.includes('phone')) field = 'phone';
+      }
+
+      return { error: { message: msg, field } };
     }
   },
 

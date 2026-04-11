@@ -323,6 +323,7 @@ export default function RequestAccessScreen() {
   const {
     control,
     handleSubmit,
+    setError,
     formState: { errors },
     trigger,
     watch,
@@ -372,7 +373,21 @@ export default function RequestAccessScreen() {
       cpf: rawCpfRef.current || data.cpf.replace(/\D/g, ''),
     });
     setIsLoading(false);
-    if (error) { setApiError(error.message); return; }
+    if (error) { 
+      if (error.field) {
+        // Exibe o erro especificamente no campo do formulário, com foco na UX do usuário.
+        setError(error.field as keyof RegisterFormSchemaType, { type: 'manual', message: error.message });
+        
+        // Se o erro foi no e-mail, e estávamos no passo 2, volta para o passo 1 onde o e-mail está
+        if (['email', 'name', 'password', 'confirmPassword'].includes(error.field)) {
+          setStep(1);
+        }
+      } else {
+        // Erro genérico (ex: banco de dados fora do ar)
+        setApiError(error.message); 
+      }
+      return; 
+    }
     setSubmittedEmail(data.email);
     setSuccess(true);
   };
