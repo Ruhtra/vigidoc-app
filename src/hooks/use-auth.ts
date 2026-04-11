@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AuthService } from '@lib/services/auth.service';
 import { useAuthStore } from '@stores/auth.store';
+import { LoginFormSchemaType } from '@lib/schemas/auth.schema';
 
 export function useAuth() {
   const { setSession, clearSession } = useAuthStore();
@@ -8,8 +9,8 @@ export function useAuth() {
 
   // Mutation para Login
   const loginMutation = useMutation({
-    mutationFn: async ({ email, password, remember }: any) => {
-      const { data, error } = await AuthService.signInEmail(email, password, remember);
+    mutationFn: async ({ email, password, remember }: LoginFormSchemaType) => {
+      const { data, error } = await AuthService.signInEmail(email, password, remember ?? false);
       if (error) throw new Error(error.message ?? 'Erro ao fazer login. Tente novamente.');
       return data;
     },
@@ -33,6 +34,7 @@ export function useAuth() {
 
   return {
     login: loginMutation.mutateAsync,
+    resetLogin: loginMutation.reset,
     isLoggingIn: loginMutation.isPending,
     loginError: (loginMutation.error as Error)?.message || null,
     

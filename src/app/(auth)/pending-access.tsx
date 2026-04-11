@@ -19,7 +19,7 @@ export default function PendingAccessScreen() {
   const { data: sessionData } = useQuery({
     queryKey: ['sessionStatus'],
     queryFn: async () => {
-      const { data } = await AuthService.getCurrentSession();
+      const data = await AuthService.getCurrentSession();
       return data;
     },
     refetchInterval: 15000, 

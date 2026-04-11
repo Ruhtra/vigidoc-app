@@ -4,9 +4,9 @@
  * O servidor usa Better-Auth com o campo adicional `role` no user.
  */
 
-export type UserRoleType = 'admin' | 'medico' | 'enfermeiro' | 'user';
+export type UserRoleType = 'admin' | 'doctor' | 'user';
 
-export type UserStatusType = 'pending' | 'active' | 'blocked';
+export type UserStatusType = 'PENDING' | 'ACTIVE' | 'BLOCKED';
 
 export type AuthUserType = {
   id: string;

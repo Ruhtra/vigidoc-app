@@ -142,7 +142,7 @@ const FieldInput = React.forwardRef<TextInput, FieldInputProps>(({
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, isLoading, error: authError } = useAuth();
+  const { login, resetLogin, isLoggingIn: isLoading, loginError: authError } = useAuth();
   const NavColors = useThemeColors();
   const storeTheme = useThemeStore(s => s.theme);
   const isDark = storeTheme === 'dark';
@@ -162,7 +162,17 @@ export default function LoginScreen() {
   });
 
   const onSubmit = async (data: LoginFormSchemaType) => {
-    await login(data.email, data.password, data.remember ?? false);
+    try {
+      await login({ 
+        email: data.email, 
+        password: data.password, 
+        remember: data.remember ?? false 
+      });
+    } catch (e) {
+      // O erro já é capturado pelo loginMutation e exposto via authError
+      // Mas o catch evita que a exception "vaze" e cause um crash de promise unhandled.
+      console.warn('[LoginScreen] Falha ao entrar:', e);
+    }
   };
 
   const submitScale = useSharedValue(1);
@@ -268,7 +278,10 @@ export default function LoginScreen() {
                 label="E-mail"
                 placeholder="voce@hospital.com.br"
                 value={value}
-                onChange={onChange}
+                onChange={(text) => {
+                  onChange(text);
+                  if (authError) resetLogin();
+                }}
                 onBlur={onBlur}
                 error={errors.email?.message}
                 keyboardType="email-address"
@@ -292,7 +305,10 @@ export default function LoginScreen() {
                 label="Senha"
                 placeholder="••••••••"
                 value={value}
-                onChange={onChange}
+                onChange={(text) => {
+                  onChange(text);
+                  if (authError) resetLogin();
+                }}
                 onBlur={onBlur}
                 error={errors.password?.message}
                 secureTextEntry={!showPassword}
