@@ -49,7 +49,6 @@ export const APP_ROUTES: AppRouteConfig[] = [
     colorKey: 'warning',
     showInTabBar: true,
     showInDrawer: true,
-    disabled: true,
   },
   {
     name: 'meu-medico',

@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Linking,
+  RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,10 +19,10 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-// import * as Notifications from 'expo-notifications'; // Removido import estático por crash no Expo Go SDK 55
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { NavSpacing, NavRadius } from '@constants/nav-theme';
 import { useThemeColors } from '@hooks/use-theme-colors';
+import { useReminderStore, ReminderData } from '../../stores/reminder.store';
 
 // Verifica se está rodando no Expo Go para evitar crashes com notificações push (removidas no SDK 53+)
 const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
@@ -29,49 +30,12 @@ const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreCl
 // ─── Types ────────────────────────────────────────────────
 type PermissionStatus = 'granted' | 'denied' | 'undetermined';
 
-type ReminderTime = {
-  id: string;
-  hour: number;
-  minute: number;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  period: 'morning' | 'afternoon' | 'night';
-};
-
-// ─── Mock data: lembretes configurados pelo responsável ───
-const CONFIGURED_REMINDERS: ReminderTime[] = [
-  {
-    id: 'r1',
-    hour: 8,
-    minute: 0,
-    label: 'Aferição Matinal',
-    icon: 'sunny-outline',
-    period: 'morning',
-  },
-  {
-    id: 'r2',
-    hour: 18,
-    minute: 0,
-    label: 'Aferição da Tarde',
-    icon: 'partly-sunny-outline',
-    period: 'afternoon',
-  },
-  {
-    id: 'r3',
-    hour: 21,
-    minute: 0,
-    label: 'Aferição Noturna',
-    icon: 'moon-outline',
-    period: 'night',
-  },
-];
-
 // ─── Helpers ──────────────────────────────────────────────
 function formatTime(hour: number, minute: number): string {
   return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
 }
 
-function getNextReminderIn(reminders: ReminderTime[]): string | null {
+function getNextReminderIn(reminders: ReminderData[]): string | null {
   const now = new Date();
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
@@ -136,7 +100,7 @@ function GlowDot({ color }: { color: string }) {
   );
 }
 
-function ReminderCard({ reminder, index }: { reminder: ReminderTime; index: number }) {
+function ReminderCard({ reminder, index }: { reminder: ReminderData; index: number }) {
   const NavColors = useThemeColors();
   const cfg = PERIOD_CONFIG[reminder.period];
 
@@ -342,6 +306,7 @@ export default function NotificacoesScreen() {
   const NavColors = useThemeColors();
   const insets = useSafeAreaInsets();
   const [permStatus, setPermStatus] = React.useState<PermissionStatus>('undetermined');
+  const { reminders, isSyncing, syncWithServer: forceSync } = useReminderStore();
 
   useEffect(() => {
     checkPermission();
@@ -383,7 +348,7 @@ export default function NotificacoesScreen() {
     Linking.openSettings();
   }
 
-  const nextIn = getNextReminderIn(CONFIGURED_REMINDERS);
+  const nextIn = getNextReminderIn(reminders);
 
   return (
     <View style={[styles.root, { backgroundColor: NavColors.bg0, paddingTop: insets.top }]}>
@@ -439,7 +404,7 @@ export default function NotificacoesScreen() {
             </View>
             <View style={[styles.countBadge, { backgroundColor: NavColors.cyanDim, borderColor: NavColors.borderBright }]}>
               <Text style={[styles.countText, { color: NavColors.cyan }]}>
-                {CONFIGURED_REMINDERS.length} lembretes
+                {reminders.length} lembretes
               </Text>
             </View>
           </View>
@@ -463,10 +428,24 @@ export default function NotificacoesScreen() {
           showsVerticalScrollIndicator={false}
           style={styles.scrollList}
           contentContainerStyle={{ gap: NavSpacing.sm, paddingBottom: NavSpacing.xxl }}
+          refreshControl={
+            <RefreshControl
+              refreshing={isSyncing}
+              onRefresh={forceSync}
+              tintColor={NavColors.cyan}
+              colors={[NavColors.cyan]}
+            />
+          }
         >
-          {CONFIGURED_REMINDERS.map((r, i) => (
+          {reminders.map((r, i) => (
             <ReminderCard key={r.id} reminder={r} index={i} />
           ))}
+          
+          {reminders.length === 0 && !isSyncing && (
+             <Text style={{ textAlign: 'center', color: NavColors.textMuted, marginTop: NavSpacing.xl }}>
+               Nenhum lembrete configurado na sua conta.
+             </Text>
+          )}
         </ScrollView>
       </View>
     </View>

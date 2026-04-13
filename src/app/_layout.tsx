@@ -17,6 +17,7 @@ import { VersionService } from '@lib/services/version.service';
 import { UpdateRequiredScreen } from '@components/update-required';
 import { useThemeStore } from '@stores/theme.store';
 import { MeasurementSyncEngine } from '@components/measurement-sync-engine';
+import { ReminderSyncEngine } from '@components/reminder-sync-engine';
 
 const queryClient = new QueryClient();
 
@@ -126,6 +127,7 @@ function RootLayoutContent() {
     <ThemeProvider value={VigiDocTheme}>
       <StatusBar style={isDark ? "light" : "dark"} translucent backgroundColor="transparent" />
       <MeasurementSyncEngine />
+      <ReminderSyncEngine />
       <View style={{ flex: 1, backgroundColor: NavColors.bg1 }}>
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: NavColors.bg1 } }}>
           <Stack.Screen name="(auth)" />

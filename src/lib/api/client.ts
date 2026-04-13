@@ -5,7 +5,7 @@ import * as SecureStore from "expo-secure-store";
 const SESSION_KEY = "vigidoc_session";
 
 // export const API_BASE_URL = "https://medic.vigidoc.org";
-export const API_BASE_URL = "http://192.168.0.8:3000";
+export const API_BASE_URL = "http://10.116.224.24:3000";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -38,7 +38,7 @@ api.interceptors.request.use(
 
         if (token && parsed.user) {
           console.log(
-            `[API Client] Sending headers: x-user-id=${parsed.user.id}, token=${token.substring(0, 10)}...`,
+            `[API Client] Sending headers: x-user-id=${parsed.user.id}, token=x${token.substring(0, 10)}...`,
           );
           // 1. Autenticação padrão Better-Auth
           config.headers.Authorization = `Bearer ${token}`;
