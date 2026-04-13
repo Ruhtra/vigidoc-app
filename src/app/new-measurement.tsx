@@ -25,10 +25,35 @@ import Animated, {
   withSequence, 
   withTiming
 } from 'react-native-reanimated';
+import { z } from 'zod';
 
 import { useMeasurementStore } from '@stores/measurement.store';
 import { useThemeColors } from '@hooks/use-theme-colors';
 import { NavSpacing, NavRadius } from '@constants/nav-theme';
+
+const inputSchemas = {
+  pa: z.number().max(350),
+  fc: z.number().max(350),
+  temp: z.number().max(50),
+  spo2: z.number().max(100),
+  dor: z.number().max(10),
+  peso: z.number().max(600),
+};
+
+const isValidInput = (id: string, text: string) => {
+  if (text === '' || text === '.' || text === ',') return true;
+  // Allow only numbers and one decimal separator
+  if (!/^(\d+([.,]\d*)?)?$/.test(text)) return false;
+
+  const num = Number(text.replace(',', '.'));
+  if (isNaN(num)) return false;
+
+  const schema = inputSchemas[id as keyof typeof inputSchemas];
+  if (schema) {
+    return schema.safeParse(num).success;
+  }
+  return true;
+};
 
 const MEASUREMENT_TYPES = [
   { id: 'pa' as const, title: 'Pressão (PA)', icon: 'speedometer-outline', color: '#00D4FF', unit: 'mmHg' },
@@ -379,7 +404,7 @@ export default function NewMeasurementScreen() {
                              placeholder="120" 
                              keyboardType="numeric" 
                              value={val1} 
-                             onChangeText={setVal1} 
+                             onChangeText={(t) => { if (isValidInput('pa', t)) setVal1(t); }} 
                              placeholderTextColor={NavColors.textMuted} 
                              returnKeyType="next"
                              onSubmitEditing={() => diastolicRef.current?.focus()}
@@ -394,7 +419,7 @@ export default function NewMeasurementScreen() {
                              placeholder="80" 
                              keyboardType="numeric" 
                              value={val2} 
-                             onChangeText={setVal2} 
+                             onChangeText={(t) => { if (isValidInput('pa', t)) setVal2(t); }} 
                              placeholderTextColor={NavColors.textMuted} 
                              returnKeyType="done"
                              onSubmitEditing={() => handleSaveItem(activeModal as string)}
@@ -410,11 +435,9 @@ export default function NewMeasurementScreen() {
                            keyboardType="numeric" 
                            value={val1} 
                            onChangeText={(t) => {
-                             if (activeModal === 'dor') {
-                               const n = Number(t);
-                               if (n > 10) return;
+                             if (isValidInput(activeModal as string, t)) {
+                               setVal1(t);
                              }
-                             setVal1(t);
                            }} 
                            placeholderTextColor={NavColors.textMuted} 
                            returnKeyType="done"

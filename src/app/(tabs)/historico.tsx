@@ -257,6 +257,19 @@ export default function HistoricoScreen() {
   });
 
   useEffect(() => {
+    const hour = new Date().getHours();
+    
+    // Atualiza o tema do header baseado na hora do dia
+    if (hour >= 6 && hour < 12) {
+      setHeaderTheme({ colors: ['#00D4FF', '#007BF5'], icon: 'partly-sunny' });
+    } else if (hour >= 12 && hour < 18) {
+      setHeaderTheme({ colors: ['#FF7B00', '#FF007B'], icon: 'sunny' });
+    } else if (hour >= 18 && hour < 24) {
+      setHeaderTheme({ colors: ['#7B2FFF', '#3A0088'], icon: 'moon' });
+    } else {
+      setHeaderTheme({ colors: ['#0C1526', '#02040E'], icon: 'moon-outline' });
+    }
+
     if (allHistory.length > 0 && Object.keys(expandedDays).length === 0) {
       setExpandedDays({ [allHistory[0].dateISO]: true });
     }

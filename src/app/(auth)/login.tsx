@@ -157,7 +157,7 @@ export default function LoginScreen() {
     formState: { errors },
   } = useForm<LoginFormSchemaType>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '', remember: false },
+    defaultValues: { email: '', password: '', remember: true },
     mode: 'onBlur',
   });
 

@@ -126,8 +126,12 @@ function RootLayoutContent() {
   return (
     <ThemeProvider value={VigiDocTheme}>
       <StatusBar style={isDark ? "light" : "dark"} translucent backgroundColor="transparent" />
-      <MeasurementSyncEngine />
-      <ReminderSyncEngine />
+      {isAuthenticated && (
+        <>
+          <MeasurementSyncEngine />
+          <ReminderSyncEngine />
+        </>
+      )}
       <View style={{ flex: 1, backgroundColor: NavColors.bg1 }}>
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: NavColors.bg1 } }}>
           <Stack.Screen name="(auth)" />

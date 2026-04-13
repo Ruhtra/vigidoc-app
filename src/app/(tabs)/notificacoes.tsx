@@ -8,6 +8,8 @@ import {
   Linking,
   RefreshControl,
   Platform,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -382,6 +384,15 @@ export default function NotificacoesScreen() {
 
   useEffect(() => {
     checkPermission();
+
+    // Listener para re-validar permissão quando o usuário voltar das configurações
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        checkPermission();
+      }
+    });
+
+    return () => subscription.remove();
   }, []);
 
   async function checkPermission() {
