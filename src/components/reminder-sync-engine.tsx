@@ -14,11 +14,12 @@ Notifications.setNotificationHandler({
 });
 
 export function ReminderSyncEngine() {
-  const { reminders, syncWithServer, loadLocal } = useReminderStore();
+  const { reminders, syncWithServer, loadLocal, setExactAlarmStatus } = useReminderStore();
   const lastScheduleHash = useRef('');
 
   // 1. Inicialização e Polling
   useEffect(() => {
+    checkExactAlarmPermission();
     loadLocal().then(() => {
       console.log(`[ReminderEngine] Inicializando serviço de notificações...`);
       syncWithServer();
@@ -31,10 +32,26 @@ export function ReminderSyncEngine() {
     return () => clearInterval(interval);
   }, []);
 
+  const checkExactAlarmPermission = async () => {
+    if (Platform.OS !== 'android') {
+      setExactAlarmStatus('granted');
+      return;
+    }
+    try {
+      const settings = await Notifications.getPermissionsAsync();
+      // Em versões recentes do expo-notifications, o status de exact alarm está em android.exactAlarmStatus
+      const status = (settings as any).android?.exactAlarmStatus || 'granted';
+      setExactAlarmStatus(status);
+    } catch (e) {
+      setExactAlarmStatus('undetermined');
+    }
+  };
+
   // 2. Listener de AppState (Sync on Foreground)
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
+        checkExactAlarmPermission();
         syncWithServer();
       }
     });

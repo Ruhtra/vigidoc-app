@@ -23,6 +23,7 @@
       "backgroundColor": "#02040E",
       "usesCleartextTraffic": true,
       "softwareKeyboardLayoutMode": "resize",
+      "permissions": ["SCHEDULE_EXACT_ALARM"],
       "navigationBar": {
         "backgroundColor": "#02040E",
         "barStyle": "light-content"

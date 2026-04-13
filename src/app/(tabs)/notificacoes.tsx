@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Linking,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -164,6 +165,77 @@ function ReminderCard({ reminder, index }: { reminder: ReminderData; index: numb
   );
 }
 
+// ─── Precision Banner (High Accuracy) ──────────────────────
+
+type PrecisionBannerProps = {
+  status: 'granted' | 'denied' | 'undetermined';
+  onOpenSettings: () => void;
+};
+
+function PrecisionBanner({ status, onOpenSettings }: PrecisionBannerProps) {
+  const NavColors = useThemeColors();
+
+  if (Platform.OS !== 'android') return null;
+
+  if (status === 'granted') {
+    return (
+      <Animated.View
+        entering={FadeInDown.duration(600).delay(100)}
+        style={[styles.permBanner, { backgroundColor: 'rgba(45,212,191,0.05)', borderColor: 'rgba(45,212,191,0.2)', marginBottom: NavSpacing.md }]}
+      >
+        <View style={styles.permBannerRow}>
+          <View style={[styles.permIconWrap, { borderColor: 'rgba(45,212,191,0.3)', backgroundColor: 'rgba(45,212,191,0.1)' }]}>
+            <Ionicons name="timer-outline" size={20} color={NavColors.cyan} />
+          </View>
+          <View style={styles.permTextWrap}>
+            <Text style={[styles.permTitle, { color: NavColors.cyan }]}>Precisão de Horário Ativa</Text>
+            <Text style={[styles.permDesc, { color: NavColors.textSecondary }]}>
+              O hardware do celular está configurado para disparar no segundo exato.
+            </Text>
+          </View>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  return (
+    <Animated.View
+      entering={FadeInDown.duration(600).delay(100)}
+      style={[styles.permBanner, { backgroundColor: 'rgba(245,158,11,0.05)', borderColor: 'rgba(245,158,11,0.3)', marginBottom: NavSpacing.md }]}
+    >
+      <View style={styles.permBannerRow}>
+        <View style={[styles.permIconWrap, { borderColor: 'rgba(245,158,11,0.3)', backgroundColor: 'rgba(245,158,11,0.1)' }]}>
+          <Ionicons name="alert-circle-outline" size={22} color="#F59E0B" />
+        </View>
+        <View style={styles.permTextWrap}>
+          <Text style={[styles.permTitle, { color: '#F59E0B' }]}>Precisão Reduzida</Text>
+          <Text style={[styles.permDesc, { color: NavColors.textSecondary }]}>
+            O Android pode atrasar o alarme em alguns minutos para economizar bateria. 
+            Ative a "Configuração de Alarmes Exatos" para pontualidade total.
+          </Text>
+        </View>
+      </View>
+      {status === 'denied' && (
+         <TouchableOpacity
+            style={styles.permButton}
+            onPress={onOpenSettings}
+            activeOpacity={0.8}
+         >
+           <LinearGradient
+             colors={['#F59E0B', '#D97706']}
+             style={styles.permButtonGradient}
+             start={{ x: 0, y: 0 }}
+             end={{ x: 1, y: 0 }}
+           >
+             <Ionicons name="settings-outline" size={16} color="#FFF" />
+             <Text style={styles.permButtonText}>Configurar Precisão</Text>
+           </LinearGradient>
+         </TouchableOpacity>
+      )}
+    </Animated.View>
+  );
+}
+
 // ─── Permission Banner ────────────────────────────────────
 
 type PermissionBannerProps = {
@@ -306,7 +378,7 @@ export default function NotificacoesScreen() {
   const NavColors = useThemeColors();
   const insets = useSafeAreaInsets();
   const [permStatus, setPermStatus] = React.useState<PermissionStatus>('undetermined');
-  const { reminders, isSyncing, syncWithServer: forceSync } = useReminderStore();
+  const { reminders, isSyncing, syncWithServer: forceSync, exactAlarmStatus } = useReminderStore();
 
   useEffect(() => {
     checkPermission();
@@ -391,6 +463,11 @@ export default function NotificacoesScreen() {
           status={permStatus}
           onRequestPermission={handleRequestPermission}
           onOpenSettings={handleOpenSettings}
+        />
+
+        <PrecisionBanner 
+           status={exactAlarmStatus} 
+           onOpenSettings={handleOpenSettings}
         />
 
         {/* ── Schedule Overview ─────────────────── */}

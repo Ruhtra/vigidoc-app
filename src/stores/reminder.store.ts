@@ -19,14 +19,19 @@ interface ReminderState {
   reminders: ReminderData[];
   isSyncing: boolean;
   lastSync: Date | null;
+  exactAlarmStatus: 'granted' | 'denied' | 'undetermined';
   loadLocal: () => Promise<void>;
   syncWithServer: () => Promise<void>;
+  setExactAlarmStatus: (status: 'granted' | 'denied' | 'undetermined') => void;
 }
 
 export const useReminderStore = create<ReminderState>((set, get) => ({
   reminders: [],
   isSyncing: false,
   lastSync: null,
+  exactAlarmStatus: 'undetermined',
+
+  setExactAlarmStatus: (status) => set({ exactAlarmStatus: status }),
 
   loadLocal: async () => {
     try {
